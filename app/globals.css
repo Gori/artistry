@@ -1,26 +1,604 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:is(.dark *));
+
+/* Dreaming Outloud — display headline font */
+@font-face {
+  font-family: "Dreaming Outloud";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dreaming-outloud/DreamingOutloud-AllCapsSlanted.woff2") format("woff2");
+}
+
+/* Control — display font family from air.inc */
+@font-face {
+  font-family: "Control";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/control/ControlUpright-Regular-Web.woff2") format("woff2"),
+    url("/fonts/control/ControlUpright-Regular-Web.woff") format("woff");
+}
+@font-face {
+  font-family: "Control TNT";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/control/ControlUpright-RegularTNT-Web.woff2") format("woff2"),
+    url("/fonts/control/ControlUpright-RegularTNT-Web.woff") format("woff");
+}
+@font-face {
+  font-family: "Control Compressed";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/control/ControlCompressed-Super-Web.woff2") format("woff2"),
+    url("/fonts/control/ControlCompressed-Super-Web.woff") format("woff");
+}
+@font-face {
+  font-family: "Control Cursive";
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/control/ControlCursive-RegularTNT-Web.woff2") format("woff2"),
+    url("/fonts/control/ControlCursive-RegularTNT-Web.woff") format("woff");
+}
+
+/* PT Root UI — primary UI font */
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/pt-root-ui/pt-root-ui_light.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/pt-root-ui/pt-root-ui_regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/pt-root-ui/pt-root-ui_medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/pt-root-ui/pt-root-ui_bold.woff2") format("woff2");
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Stage colors */
+  --color-stage-idea: var(--stage-idea);
+  --color-stage-idea-foreground: var(--stage-idea-foreground);
+  --color-stage-idea-muted: var(--stage-idea-muted);
+  --color-stage-writing: var(--stage-writing);
+  --color-stage-writing-foreground: var(--stage-writing-foreground);
+  --color-stage-writing-muted: var(--stage-writing-muted);
+  --color-stage-producing: var(--stage-producing);
+  --color-stage-producing-foreground: var(--stage-producing-foreground);
+  --color-stage-producing-muted: var(--stage-producing-muted);
+  --color-stage-mixing: var(--stage-mixing);
+  --color-stage-mixing-foreground: var(--stage-mixing-foreground);
+  --color-stage-mixing-muted: var(--stage-mixing-muted);
+  --color-stage-done: var(--stage-done);
+  --color-stage-done-foreground: var(--stage-done-foreground);
+  --color-stage-done-muted: var(--stage-done-muted);
+
+  /* Section colors */
+  --color-section-verse: var(--section-verse);
+  --color-section-chorus: var(--section-chorus);
+  --color-section-bridge: var(--section-bridge);
+  --color-section-pre-chorus: var(--section-pre-chorus);
+  --color-section-intro: var(--section-intro);
+  --color-section-outro: var(--section-outro);
+  --color-section-hook: var(--section-hook);
+  --color-section-instrumental: var(--section-instrumental);
+  --color-section-interlude: var(--section-interlude);
+
+  /* Surface hierarchy */
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  /* Semantic colors */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-link: var(--link);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "PT Root UI", sans-serif;
+  --font-mono: "PT Root UI", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* Violet-tinted neutrals */
+  --background: oklch(0.995 0.006 285);
+  --foreground: oklch(0.12 0.03 285);
+  --card: oklch(0.995 0.006 285);
+  --card-foreground: oklch(0.12 0.03 285);
+  --popover: oklch(0.995 0.006 285);
+  --popover-foreground: oklch(0.12 0.03 285);
+  --primary: oklch(0.5 0.22 285);
+  --primary-foreground: oklch(0.985 0.01 285);
+  --secondary: oklch(0.965 0.01 285);
+  --secondary-foreground: oklch(0.18 0.025 285);
+  --muted: oklch(0.96 0.008 285);
+  --muted-foreground: oklch(0.45 0.02 285);
+  --accent: oklch(0.94 0.02 285);
+  --accent-foreground: oklch(0.18 0.025 285);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.91 0.008 285);
+  --input: oklch(0.91 0.008 285);
+  --ring: oklch(0.5 0.22 285);
+  --chart-1: oklch(0.55 0.22 285);
+  --chart-2: oklch(0.65 0.15 175);
+  --chart-3: oklch(0.55 0.12 245);
+  --chart-4: oklch(0.75 0.15 80);
+  --chart-5: oklch(0.65 0.18 15);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0.008 285);
+  --sidebar-foreground: oklch(0.15 0.015 285);
+  --sidebar-primary: oklch(0.5 0.22 285);
+  --sidebar-primary-foreground: oklch(0.985 0.01 285);
+  --sidebar-accent: oklch(0.96 0.012 285);
+  --sidebar-accent-foreground: oklch(0.2 0.015 285);
+  --sidebar-border: oklch(0.91 0.008 285);
+  --sidebar-ring: oklch(0.5 0.22 285);
+
+  /* Stage colors — idea(amber) writing(rose) producing(violet) mixing(blue) done(emerald) */
+  --stage-idea: oklch(0.7 0.15 80);
+  --stage-idea-foreground: oklch(0.3 0.05 80);
+  --stage-idea-muted: oklch(0.97 0.015 80);
+  --stage-writing: oklch(0.65 0.18 15);
+  --stage-writing-foreground: oklch(0.3 0.05 15);
+  --stage-writing-muted: oklch(0.97 0.015 15);
+  --stage-producing: oklch(0.55 0.2 295);
+  --stage-producing-foreground: oklch(0.3 0.05 295);
+  --stage-producing-muted: oklch(0.97 0.015 295);
+  --stage-mixing: oklch(0.55 0.15 245);
+  --stage-mixing-foreground: oklch(0.3 0.05 245);
+  --stage-mixing-muted: oklch(0.97 0.015 245);
+  --stage-done: oklch(0.6 0.15 155);
+  --stage-done-foreground: oklch(0.25 0.05 155);
+  --stage-done-muted: oklch(0.97 0.015 155);
+
+  /* Section colors for lyric markers */
+  --section-verse: oklch(0.55 0.15 245);
+  --section-chorus: oklch(0.7 0.15 80);
+  --section-bridge: oklch(0.6 0.12 175);
+  --section-pre-chorus: oklch(0.6 0.18 295);
+  --section-intro: oklch(0.55 0.15 145);
+  --section-outro: oklch(0.6 0.16 15);
+  --section-hook: oklch(0.65 0.16 55);
+  --section-instrumental: oklch(0.55 0.01 285);
+  --section-interlude: oklch(0.55 0.01 285);
+
+  /* Surface hierarchy */
+  --surface-0: oklch(0.995 0.006 285);
+  --surface-1: oklch(0.98 0.008 285);
+  --surface-2: oklch(0.965 0.01 285);
+  --surface-3: oklch(0.94 0.012 285);
+
+  /* Semantic */
+  --success: oklch(0.6 0.18 145);
+  --success-foreground: oklch(0.25 0.05 145);
+  --warning: oklch(0.75 0.15 80);
+  --warning-foreground: oklch(0.3 0.05 80);
+  --link: oklch(0.5 0.2 285);
+}
+
+.dark {
+  /* Violet-tinted neutrals */
+  --background: oklch(0.155 0.015 285);
+  --foreground: oklch(0.985 0.008 285);
+  --card: oklch(0.155 0.015 285);
+  --card-foreground: oklch(0.985 0.008 285);
+  --popover: oklch(0.155 0.015 285);
+  --popover-foreground: oklch(0.985 0.008 285);
+  --primary: oklch(0.72 0.17 285);
+  --primary-foreground: oklch(0.18 0.03 285);
+  --secondary: oklch(0.25 0.015 285);
+  --secondary-foreground: oklch(0.985 0.008 285);
+  --muted: oklch(0.25 0.015 285);
+  --muted-foreground: oklch(0.7 0.01 285);
+  --accent: oklch(0.28 0.025 285);
+  --accent-foreground: oklch(0.985 0.008 285);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.27 0.015 285);
+  --input: oklch(0.27 0.015 285);
+  --ring: oklch(0.72 0.17 285);
+  --chart-1: oklch(0.65 0.22 285);
+  --chart-2: oklch(0.7 0.15 175);
+  --chart-3: oklch(0.65 0.15 245);
+  --chart-4: oklch(0.8 0.15 80);
+  --chart-5: oklch(0.7 0.18 15);
+  --sidebar: oklch(0.155 0.015 285);
+  --sidebar-foreground: oklch(0.985 0.008 285);
+  --sidebar-primary: oklch(0.72 0.17 285);
+  --sidebar-primary-foreground: oklch(0.985 0.008 285);
+  --sidebar-accent: oklch(0.25 0.015 285);
+  --sidebar-accent-foreground: oklch(0.985 0.008 285);
+  --sidebar-border: oklch(0.27 0.015 285);
+  --sidebar-ring: oklch(0.72 0.17 285);
+
+  /* Stage colors — brighter for dark backgrounds */
+  --stage-idea: oklch(0.78 0.14 80);
+  --stage-idea-foreground: oklch(0.95 0.02 80);
+  --stage-idea-muted: oklch(0.22 0.025 80);
+  --stage-writing: oklch(0.72 0.16 15);
+  --stage-writing-foreground: oklch(0.95 0.02 15);
+  --stage-writing-muted: oklch(0.22 0.025 15);
+  --stage-producing: oklch(0.7 0.17 295);
+  --stage-producing-foreground: oklch(0.95 0.02 295);
+  --stage-producing-muted: oklch(0.22 0.025 295);
+  --stage-mixing: oklch(0.68 0.14 245);
+  --stage-mixing-foreground: oklch(0.95 0.02 245);
+  --stage-mixing-muted: oklch(0.22 0.025 245);
+  --stage-done: oklch(0.72 0.14 155);
+  --stage-done-foreground: oklch(0.95 0.02 155);
+  --stage-done-muted: oklch(0.22 0.025 155);
+
+  /* Section colors — brighter for dark backgrounds */
+  --section-verse: oklch(0.7 0.14 245);
+  --section-chorus: oklch(0.8 0.14 80);
+  --section-bridge: oklch(0.72 0.12 175);
+  --section-pre-chorus: oklch(0.72 0.16 295);
+  --section-intro: oklch(0.7 0.14 145);
+  --section-outro: oklch(0.72 0.14 15);
+  --section-hook: oklch(0.75 0.15 55);
+  --section-instrumental: oklch(0.65 0.01 285);
+  --section-interlude: oklch(0.65 0.01 285);
+
+  /* Surface hierarchy */
+  --surface-0: oklch(0.155 0.015 285);
+  --surface-1: oklch(0.19 0.015 285);
+  --surface-2: oklch(0.22 0.015 285);
+  --surface-3: oklch(0.27 0.015 285);
+
+  /* Semantic */
+  --success: oklch(0.7 0.16 145);
+  --success-foreground: oklch(0.18 0.03 145);
+  --warning: oklch(0.8 0.14 80);
+  --warning-foreground: oklch(0.2 0.04 80);
+  --link: oklch(0.72 0.17 285);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-size: 20px;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "PT Root UI", sans-serif;
   }
 }
 
-body {
-  background: var(--background);
+/* CodeMirror editor overrides */
+.cm-editor {
+  font-family: "PT Root UI", sans-serif;
+  font-size: 18px;
+  background: transparent !important;
+  height: 100%;
+}
+
+.cm-editor .cm-scroller {
+  padding: 24px;
+  line-height: 1.55;
+  font-family: inherit;
+  overflow: auto;
+}
+
+.cm-editor .cm-content {
+  font-family: inherit;
+}
+
+.cm-editor .cm-gutters {
+  display: none !important;
+}
+
+.cm-editor .cm-activeLine,
+.cm-editor .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+
+.cm-editor .cm-selectionBackground {
+  background: oklch(0.8 0.06 285 / 0.3) !important;
+}
+
+.cm-editor .cm-placeholder {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.cm-editor .cm-line {
+  padding: 0;
+}
+
+/* Section marker decorations */
+.cm-section-marker {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* AI result block (CodeMirror widget)                                */
+/* ------------------------------------------------------------------ */
+
+.cm-ai-block {
+  margin: 8px 24px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  font-family: "PT Root UI", sans-serif;
+  font-size: 15px;
+  overflow: hidden;
+}
+
+.cm-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.cm-ai-dismiss-x {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.cm-ai-dismiss-x:hover {
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+.cm-ai-context {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-style: italic;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-0);
+}
+
+.cm-ai-content {
+  padding: 12px 16px;
+  line-height: 1.7;
+  font-size: 15px;
+  color: var(--foreground);
+}
+
+/* Rendered markdown inside AI content */
+.cm-ai-content p {
+  margin: 0 0 0.5em;
+}
+.cm-ai-content p:last-child {
+  margin-bottom: 0;
+}
+.cm-ai-content strong {
+  font-weight: 700;
+}
+.cm-ai-content em {
+  font-style: italic;
+}
+.cm-ai-content ul,
+.cm-ai-content ol {
+  margin: 0.25em 0 0.5em;
+  padding-left: 1.5em;
+}
+.cm-ai-content li {
+  margin-bottom: 0.2em;
+}
+.cm-ai-content h1, .cm-ai-content h2, .cm-ai-content h3 {
+  font-weight: 700;
+  margin: 0.5em 0 0.25em;
+}
+.cm-ai-content h1 { font-size: 1.2em; }
+.cm-ai-content h2 { font-size: 1.1em; }
+.cm-ai-content h3 { font-size: 1.05em; }
+.cm-ai-content code {
+  font-family: "PT Root UI", monospace;
+  font-size: 0.9em;
+  background: var(--muted);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.cm-ai-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.75em 0;
+}
+
+/* Clickable alternatives */
+.cm-ai-content:has(.cm-ai-alternative) {
+  padding: 0;
+}
+
+.cm-ai-alternative {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--foreground);
+  font-family: inherit;
+  line-height: 1.5;
+  transition: background-color 0.15s;
+}
+.cm-ai-alternative:last-child {
+  border-bottom: none;
+}
+.cm-ai-alternative:hover {
+  background: var(--accent);
+}
+
+/* Loading state */
+.cm-ai-loading {
+  padding: 12px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-ai-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: cm-ai-spin 0.6s linear infinite;
+}
+
+@keyframes cm-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Action buttons */
+.cm-ai-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.cm-ai-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background-color 0.15s, opacity 0.15s;
+  font-family: inherit;
+}
+
+.cm-ai-btn-accept {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+.cm-ai-btn-accept:hover {
+  opacity: 0.9;
+}
+
+.cm-ai-btn-dismiss {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+.cm-ai-btn-dismiss:hover {
+  background: var(--accent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Image preview in CodeMirror                                        */
+/* ------------------------------------------------------------------ */
+
+.cm-image-widget {
+  padding: 8px 24px;
+}
+
+.cm-image-widget img {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cm-image-widget.cm-image-loaded img {
+  opacity: 1;
+}
+
+.cm-image-widget.cm-image-error img {
+  display: none;
+}
+
+.cm-image-widget.cm-image-error::after {
+  content: "Failed to load image";
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.cm-image-uploading {
+  padding: 8px 24px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-style: italic;
 }
