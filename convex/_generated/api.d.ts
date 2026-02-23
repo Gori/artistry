@@ -16,6 +16,7 @@ import type * as lyrics from "../lyrics.js";
 import type * as migrations from "../migrations.js";
 import type * as notes from "../notes.js";
 import type * as shareLinks from "../shareLinks.js";
+import type * as songGroups from "../songGroups.js";
 import type * as songVersions from "../songVersions.js";
 import type * as songs from "../songs.js";
 import type * as tags from "../tags.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   notes: typeof notes;
   shareLinks: typeof shareLinks;
+  songGroups: typeof songGroups;
   songVersions: typeof songVersions;
   songs: typeof songs;
   tags: typeof tags;

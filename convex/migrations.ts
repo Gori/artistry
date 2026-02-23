@@ -1,4 +1,5 @@
 import { internalMutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { generateUniqueSlug } from "./lib/slugify";
 
 export const renameStageToProd = internalMutation({
@@ -57,5 +58,37 @@ export const backfillSlugs = internalMutation({
       workspaces: workspaces.length,
       songs: songs.length,
     };
+  },
+});
+
+export const migrateAudioToBlob = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    let versionCount = 0;
+    let noteCount = 0;
+
+    const versions = await ctx.db.query("songVersions").collect();
+    for (const version of versions) {
+      if (version.audioUrl) continue;
+      const fileId = version.audioFileId as Id<"_storage"> | undefined;
+      if (!fileId) continue;
+      const url = await ctx.storage.getUrl(fileId);
+      if (!url) continue;
+      await ctx.db.patch(version._id, { audioUrl: url });
+      versionCount++;
+    }
+
+    const notes = await ctx.db.query("audioNotes").collect();
+    for (const note of notes) {
+      if (note.audioUrl) continue;
+      const fileId = note.audioFileId as Id<"_storage"> | undefined;
+      if (!fileId) continue;
+      const url = await ctx.storage.getUrl(fileId);
+      if (!url) continue;
+      await ctx.db.patch(note._id, { audioUrl: url });
+      noteCount++;
+    }
+
+    return { versionCount, noteCount };
   },
 });

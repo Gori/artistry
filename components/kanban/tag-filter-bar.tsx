@@ -24,7 +24,7 @@ export function TagFilterBar({
   if (tags.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 px-4 pb-2">
+    <div className="flex items-center gap-2">
       {tags.map((tag) => {
         const active = activeTagIds.has(tag._id);
         return (

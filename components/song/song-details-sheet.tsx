@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,31 +24,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TagManager } from "./tag-manager";
-
-const STAGES = ["idea", "writing", "producing", "mixing", "done"] as const;
-type Stage = (typeof STAGES)[number];
-
-const STAGE_LABELS: Record<Stage, string> = {
-  idea: "Idea",
-  writing: "Writing",
-  producing: "Producing",
-  mixing: "Mixing",
-  done: "Done",
-};
-
-interface Song {
-  _id: Id<"songs">;
-  title: string;
-  stage: string;
-  position: number;
-  description?: string;
-  tempo?: string;
-  key?: string;
-  workspaceId: Id<"workspaces">;
-  createdBy: Id<"users">;
-  tagIds?: Id<"tags">[];
-}
+import {
+  STAGES,
+  type Stage,
+  type KanbanSong,
+  STAGE_LABELS,
+} from "@/lib/kanban/types";
 
 export function SongDetailsSheet({
   song,
@@ -57,7 +37,7 @@ export function SongDetailsSheet({
   open,
   onOpenChange,
 }: {
-  song: Song;
+  song: KanbanSong;
   workspaceSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -196,15 +176,6 @@ export function SongDetailsSheet({
                 placeholder="C major"
               />
             </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Tags</Label>
-            <TagManager
-              songId={song._id}
-              workspaceId={song.workspaceId}
-              songTagIds={song.tagIds ?? []}
-            />
           </div>
 
           <Separator />

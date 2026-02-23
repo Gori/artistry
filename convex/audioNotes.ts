@@ -21,10 +21,21 @@ export const listBySong = query({
 
     if (!membership) return [];
 
-    return await ctx.db
+    const audioNotes = await ctx.db
       .query("audioNotes")
       .withIndex("by_song", (q) => q.eq("songId", args.songId))
       .collect();
+
+    return await Promise.all(
+      audioNotes.map(async (note) => ({
+        ...note,
+        audioUrl:
+          note.audioUrl ??
+          (note.audioFileId
+            ? await ctx.storage.getUrl(note.audioFileId)
+            : null),
+      }))
+    );
   },
 });
 

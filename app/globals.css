@@ -45,6 +45,64 @@
     url("/fonts/control/ControlCursive-RegularTNT-Web.woff") format("woff");
 }
 
+/* Iosevka Aile — editor font */
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-Italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-MediumItalic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-SemiBoldItalic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/iosevka-aile/IosevkaAile-BoldItalic.woff2") format("woff2");
+}
+
 /* PT Root UI — primary UI font */
 @font-face {
   font-family: "PT Root UI";
@@ -126,6 +184,24 @@
   --color-stage-done-foreground: var(--stage-done-foreground);
   --color-stage-done-muted: var(--stage-done-muted);
 
+  /* Group colors */
+  --color-group-1: var(--group-1);
+  --color-group-1-muted: var(--group-1-muted);
+  --color-group-2: var(--group-2);
+  --color-group-2-muted: var(--group-2-muted);
+  --color-group-3: var(--group-3);
+  --color-group-3-muted: var(--group-3-muted);
+  --color-group-4: var(--group-4);
+  --color-group-4-muted: var(--group-4-muted);
+  --color-group-5: var(--group-5);
+  --color-group-5-muted: var(--group-5-muted);
+  --color-group-6: var(--group-6);
+  --color-group-6-muted: var(--group-6-muted);
+  --color-group-7: var(--group-7);
+  --color-group-7-muted: var(--group-7-muted);
+  --color-group-8: var(--group-8);
+  --color-group-8-muted: var(--group-8-muted);
+
   /* Section colors */
   --color-section-verse: var(--section-verse);
   --color-section-chorus: var(--section-chorus);
@@ -154,8 +230,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "PT Root UI", sans-serif;
-  --font-mono: "PT Root UI", sans-serif;
+  --font-sans: var(--font-lexend), sans-serif;
+  --font-mono: var(--font-lexend), sans-serif;
 }
 
 :root {
@@ -210,6 +286,24 @@
   --stage-done: oklch(0.6 0.15 155);
   --stage-done-foreground: oklch(0.25 0.05 155);
   --stage-done-muted: oklch(0.97 0.015 155);
+
+  /* Group colors — 8 rotating hues for user-created groups */
+  --group-1: oklch(0.58 0.13 180);
+  --group-1-muted: oklch(0.97 0.01 180);
+  --group-2: oklch(0.65 0.14 45);
+  --group-2-muted: oklch(0.97 0.012 45);
+  --group-3: oklch(0.62 0.16 340);
+  --group-3-muted: oklch(0.97 0.01 340);
+  --group-4: oklch(0.58 0.14 120);
+  --group-4-muted: oklch(0.97 0.012 120);
+  --group-5: oklch(0.52 0.17 270);
+  --group-5-muted: oklch(0.97 0.012 270);
+  --group-6: oklch(0.65 0.15 20);
+  --group-6-muted: oklch(0.97 0.012 20);
+  --group-7: oklch(0.55 0.12 210);
+  --group-7-muted: oklch(0.97 0.01 210);
+  --group-8: oklch(0.58 0.16 315);
+  --group-8-muted: oklch(0.97 0.012 315);
 
   /* Section colors for lyric markers */
   --section-verse: oklch(0.55 0.15 245);
@@ -288,6 +382,24 @@
   --stage-done-foreground: oklch(0.95 0.02 155);
   --stage-done-muted: oklch(0.22 0.025 155);
 
+  /* Group colors — brighter for dark backgrounds */
+  --group-1: oklch(0.72 0.12 180);
+  --group-1-muted: oklch(0.22 0.02 180);
+  --group-2: oklch(0.78 0.13 45);
+  --group-2-muted: oklch(0.22 0.022 45);
+  --group-3: oklch(0.74 0.14 340);
+  --group-3-muted: oklch(0.22 0.02 340);
+  --group-4: oklch(0.72 0.13 120);
+  --group-4-muted: oklch(0.22 0.022 120);
+  --group-5: oklch(0.68 0.15 270);
+  --group-5-muted: oklch(0.22 0.022 270);
+  --group-6: oklch(0.76 0.13 20);
+  --group-6-muted: oklch(0.22 0.02 20);
+  --group-7: oklch(0.7 0.11 210);
+  --group-7-muted: oklch(0.22 0.02 210);
+  --group-8: oklch(0.72 0.14 315);
+  --group-8-muted: oklch(0.22 0.022 315);
+
   /* Section colors — brighter for dark backgrounds */
   --section-verse: oklch(0.7 0.14 245);
   --section-chorus: oklch(0.8 0.14 80);
@@ -322,13 +434,13 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "PT Root UI", sans-serif;
+    font-family: var(--font-lexend), sans-serif;
   }
 }
 
 /* CodeMirror editor overrides */
 .cm-editor {
-  font-family: "PT Root UI", sans-serif;
+  font-family: "Iosevka Aile", sans-serif;
   font-size: 18px;
   background: transparent !important;
   height: 100%;
@@ -386,7 +498,7 @@
   border-left: 3px solid var(--primary);
   border-radius: var(--radius);
   background: var(--surface-1);
-  font-family: "PT Root UI", sans-serif;
+  font-family: "Iosevka Aile", sans-serif;
   font-size: 15px;
   overflow: hidden;
 }
@@ -462,7 +574,7 @@
 .cm-ai-content h2 { font-size: 1.1em; }
 .cm-ai-content h3 { font-size: 1.05em; }
 .cm-ai-content code {
-  font-family: "PT Root UI", monospace;
+  font-family: "Iosevka Aile", monospace;
   font-size: 0.9em;
   background: var(--muted);
   padding: 1px 4px;

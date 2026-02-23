@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Lexend_Deca } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+
+const lexend = Lexend_Deca({
+  subsets: ["latin"],
+  variable: "--font-lexend",
+});
 
 export const metadata: Metadata = {
   title: "Artistry",
@@ -13,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={lexend.variable}>
       <body className="antialiased">
         <Providers>
           {children}

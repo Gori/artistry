@@ -157,9 +157,12 @@ export const getBySlug = query({
       (song.tagIds ?? []).map((id) => ctx.db.get(id))
     );
 
+    const group = song.groupId ? await ctx.db.get(song.groupId) : null;
+
     return {
       ...song,
       workspaceName: workspace.name,
+      groupName: group?.name,
       tags: tags.filter((t): t is NonNullable<typeof t> => t != null),
     };
   },
@@ -249,6 +252,35 @@ export const move = mutation({
     await ctx.db.patch(args.id, {
       stage: args.stage,
       position: args.position,
+    });
+  },
+});
+
+export const moveToGroup = mutation({
+  args: {
+    id: v.id("songs"),
+    groupId: v.optional(v.id("songGroups")),
+    groupPosition: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const song = await ctx.db.get(args.id);
+    if (!song) throw new Error("Song not found");
+
+    const membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace_and_user", (q) =>
+        q.eq("workspaceId", song.workspaceId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) throw new Error("Not a member of this workspace");
+
+    await ctx.db.patch(args.id, {
+      groupId: args.groupId,
+      groupPosition: args.groupPosition,
     });
   },
 });

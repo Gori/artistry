@@ -56,7 +56,10 @@ export default function LoginPage() {
           <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary">
             <Music className="size-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">Artistry</CardTitle>
+          <CardTitle
+            className="text-6xl tracking-tight"
+            style={{ fontFamily: '"Dreaming Outloud", cursive' }}
+          >Artistry</CardTitle>
           <CardDescription>
             {mode === "signIn"
               ? "Sign in to your account"

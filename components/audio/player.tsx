@@ -1,8 +1,17 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { Play, Pause } from "lucide-react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import { Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { generatePeaks } from "@/lib/waveform";
+import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -10,79 +19,357 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayer({ src }: { src: string }) {
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+
+export function AudioPlayer({
+  src,
+  className,
+}: {
+  src: string;
+  className?: string;
+}) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const waveformRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [rate, setRate] = useState(1);
+  const [peaks, setPeaks] = useState<number[] | null>(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [hoverX, setHoverX] = useState<number | null>(null);
+  const [scrubbing, setScrubbing] = useState(false);
+
+  const H = 40;
+  const BAR_W = 2;
+  const GAP = 1;
+
+  // -- Audio element ---------------------------------------------------------
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    function handleTimeUpdate() {
-      setCurrentTime(audio!.currentTime);
-    }
-    function handleLoadedMetadata() {
-      setDuration(audio!.duration);
-    }
-    function handleEnded() {
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setLoading(true);
+    setPeaks(null);
+    audio.playbackRate = rate;
+
+    const onMeta = () => {
+      setDuration(audio.duration);
+      setLoading(false);
+    };
+    const onEnd = () => {
       setPlaying(false);
       setCurrentTime(0);
-    }
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("ended", handleEnded);
     };
+    const onWait = () => setLoading(true);
+    const onCan = () => setLoading(false);
+
+    audio.addEventListener("loadedmetadata", onMeta);
+    audio.addEventListener("ended", onEnd);
+    audio.addEventListener("waiting", onWait);
+    audio.addEventListener("canplay", onCan);
+    return () => {
+      audio.removeEventListener("loadedmetadata", onMeta);
+      audio.removeEventListener("ended", onEnd);
+      audio.removeEventListener("waiting", onWait);
+      audio.removeEventListener("canplay", onCan);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  // -- Peaks -----------------------------------------------------------------
+
+  useEffect(() => {
+    let cancelled = false;
+    const count = canvasWidth > 0 ? Math.floor(canvasWidth / (BAR_W + GAP)) : 200;
+    generatePeaks(src, count)
+      .then((d) => {
+        if (cancelled) return;
+        setPeaks(d.peaks);
+        if (d.duration > 0) setDuration(d.duration);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [src, canvasWidth]);
+
+  // -- Resize ----------------------------------------------------------------
+
+  useEffect(() => {
+    const el = waveformRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.floor(entry.contentRect.width);
+        if (w > 0) setCanvasWidth(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  function togglePlay() {
+  // -- Draw ------------------------------------------------------------------
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !peaks || canvasWidth === 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvasWidth * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${H}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, canvasWidth, H);
+
+    // Theme-aware colors via CSS vars
+    const style = getComputedStyle(canvas);
+    const prim = style.getPropertyValue("--primary").trim();
+    const mut = style.getPropertyValue("--muted").trim();
+    const playedColor = prim ? `oklch(${prim})` : "#7c3aed";
+    const unplayedColor = mut ? `oklch(${mut})` : "#e5e7eb";
+
+    const progress = duration > 0 ? currentTime / duration : 0;
+    const splitBar = Math.floor(progress * peaks.length);
+    const centerY = H / 2;
+    const halfH = H / 2 - 2; // 2px padding
+    const minH = 2;
+
+    for (let i = 0; i < peaks.length; i++) {
+      const barH = Math.max(minH, peaks[i] * halfH * 2);
+      const x = i * (BAR_W + GAP);
+      const y = centerY - barH / 2;
+
+      ctx.fillStyle = i <= splitBar ? playedColor : unplayedColor;
+      ctx.beginPath();
+      ctx.roundRect(x, y, BAR_W, barH, 1);
+      ctx.fill();
+    }
+
+    // Playhead
+    if (duration > 0) {
+      const px = progress * canvasWidth;
+      ctx.fillStyle = playedColor;
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(px - 0.5, 0, 1, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // Hover line
+    if (hoverX !== null && !scrubbing) {
+      ctx.fillStyle = playedColor;
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(hoverX - 0.5, 0, 1, H);
+      ctx.globalAlpha = 1;
+    }
+  }, [peaks, canvasWidth, currentTime, duration, hoverX, scrubbing]);
+
+  // -- rAF loop --------------------------------------------------------------
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !playing) return;
+    function tick() {
+      setCurrentTime(audio!.currentTime);
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [playing]);
+
+  useEffect(() => {
+    draw();
+  }, [draw]);
+
+  // -- Controls --------------------------------------------------------------
+
+  const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) {
       audio.pause();
+      setPlaying(false);
     } else {
       void audio.play();
+      setPlaying(true);
     }
-    setPlaying(!playing);
-  }
+  }, [playing]);
 
-  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
+  const seek = useCallback((time: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    const time = Number(e.target.value);
-    audio.currentTime = time;
-    setCurrentTime(time);
-  }
+    const t = Math.max(0, Math.min(time, audio.duration || 0));
+    audio.currentTime = t;
+    setCurrentTime(t);
+  }, []);
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const cycleRate = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const i = RATES.indexOf(rate as (typeof RATES)[number]);
+    const next = RATES[(i + 1) % RATES.length];
+    audio.playbackRate = next;
+    setRate(next);
+  }, [rate]);
+
+  // -- Pointer events --------------------------------------------------------
+
+  const getFraction = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement> | globalThis.PointerEvent) => {
+      const rect = waveformRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return 0;
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    },
+    []
+  );
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (duration === 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setScrubbing(true);
+      seek(getFraction(e) * duration);
+    },
+    [duration, getFraction, seek]
+  );
+
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const rect = waveformRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setHoverX(Math.max(0, Math.min(canvasWidth, e.clientX - rect.left)));
+      if (scrubbing && duration > 0) seek(getFraction(e) * duration);
+    },
+    [scrubbing, duration, getFraction, seek, canvasWidth]
+  );
+
+  const onPointerUp = useCallback(() => setScrubbing(false), []);
+  const onPointerLeave = useCallback(() => {
+    setHoverX(null);
+    setScrubbing(false);
+  }, []);
+
+  // -- Keyboard --------------------------------------------------------------
+
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          seek(currentTime - 5);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          seek(currentTime + 5);
+          break;
+      }
+    },
+    [togglePlay, seek, currentTime]
+  );
+
+  // -- Render ----------------------------------------------------------------
 
   return (
-    <div className="flex items-center gap-3">
+    <div
+      className={cn(
+        "group/player flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md",
+        className
+      )}
+      tabIndex={0}
+      role="region"
+      aria-label="Audio player"
+      onKeyDown={onKeyDown}
+    >
       <audio ref={audioRef} src={src} preload="metadata" />
-      <Button variant="ghost" size="icon-xs" onClick={togglePlay}>
-        {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
+
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={togglePlay}
+        aria-label={playing ? "Pause" : "Play"}
+        className="shrink-0"
+      >
+        {loading && !peaks ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : playing ? (
+          <Pause className="size-3" />
+        ) : (
+          <Play className="size-3" />
+        )}
       </Button>
-      <div className="flex flex-1 items-center gap-2">
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={currentTime}
-          onChange={handleSeek}
-          step={0.1}
-          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+
+      {/* Waveform — the seek control */}
+      <div
+        ref={waveformRef}
+        className="relative min-w-0 flex-1 cursor-pointer"
+        style={{ height: H, touchAction: "none" }}
+        role="slider"
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={Math.floor(duration)}
+        aria-valuenow={Math.floor(currentTime)}
+        aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
+      >
+        {!peaks && (
+          <div className="absolute inset-0 flex items-center justify-center gap-[1px]">
+            {Array.from({
+              length: Math.max(1, Math.floor((canvasWidth || 120) / (BAR_W + GAP))),
+            }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-sm bg-muted"
+                style={{
+                  width: BAR_W,
+                  height: `${4 + Math.abs(Math.sin(i * 0.25)) * 20}px`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        <canvas
+          ref={canvasRef}
+          className={cn("block", !peaks && "opacity-0")}
+          style={{ width: canvasWidth || "100%", height: H }}
         />
       </div>
-      <span className="min-w-[70px] text-right text-xs tabular-nums text-muted-foreground">
-        {formatTime(currentTime)} / {formatTime(duration)}
+
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {formatTime(currentTime)}
+        <span className="mx-0.5 opacity-40">/</span>
+        {formatTime(duration)}
       </span>
+
+      <button
+        onClick={cycleRate}
+        className={cn(
+          "shrink-0 rounded px-1 py-0.5 text-xs font-medium tabular-nums transition-colors",
+          rate !== 1
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+        aria-label={`Playback speed ${rate}x`}
+      >
+        {rate}x
+      </button>
     </div>
   );
 }

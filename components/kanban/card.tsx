@@ -3,52 +3,20 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-interface SongTag {
-  _id: Id<"tags">;
-  name: string;
-  color: string;
-}
-
-interface Song {
-  _id: Id<"songs">;
-  title: string;
-  slug?: string;
-  stage: string;
-  position: number;
-  description?: string;
-  workspaceId: Id<"workspaces">;
-  createdBy: Id<"users">;
-  tempo?: string;
-  key?: string;
-  tags?: SongTag[];
-}
-
-const STAGE_LABELS: Record<string, string> = {
-  idea: "Idea",
-  writing: "Writing",
-  producing: "Producing",
-  mixing: "Mixing",
-  done: "Done",
-};
-
-const STAGE_BADGE_CLASSES: Record<string, string> = {
-  idea: "border-stage-idea/25 bg-stage-idea/10 text-stage-idea",
-  writing: "border-stage-writing/25 bg-stage-writing/10 text-stage-writing",
-  producing: "border-stage-producing/25 bg-stage-producing/10 text-stage-producing",
-  mixing: "border-stage-mixing/25 bg-stage-mixing/10 text-stage-mixing",
-  done: "border-stage-done/25 bg-stage-done/10 text-stage-done",
-};
+import {
+  type KanbanSong,
+  STAGE_LABELS,
+  STAGE_BADGE_CLASSES,
+} from "@/lib/kanban/types";
 
 export function KanbanCard({
   song,
   workspaceSlug,
   overlay = false,
 }: {
-  song: Song;
+  song: KanbanSong;
   workspaceSlug: string;
   overlay?: boolean;
 }) {
@@ -86,7 +54,7 @@ export function KanbanCard({
       )}
       <div className="mt-2 flex items-center gap-1.5">
         <Badge variant="outline" className={cn("text-[10px]", STAGE_BADGE_CLASSES[song.stage])}>
-          {STAGE_LABELS[song.stage] ?? song.stage}
+          {STAGE_LABELS[song.stage as keyof typeof STAGE_LABELS] ?? song.stage}
         </Badge>
         {song.tempo && (
           <span className="text-[10px] text-muted-foreground">

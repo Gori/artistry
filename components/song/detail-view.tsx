@@ -6,6 +6,7 @@ import { PenLine, StickyNote, Disc3, Mic } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
+import { type KanbanSong } from "@/lib/kanban/types";
 import { SongHeader } from "./song-header";
 import { SongDetailsSheet } from "./song-details-sheet";
 import { LyricsEditor } from "./lyrics-editor";
@@ -22,26 +23,12 @@ const SECTIONS = [
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
-interface Song {
-  _id: Id<"songs">;
-  title: string;
-  stage: string;
-  position: number;
-  description?: string;
-  tempo?: string;
-  key?: string;
-  workspaceId: Id<"workspaces">;
-  createdBy: Id<"users">;
-  tagIds?: Id<"tags">[];
-  tags?: Array<{ _id: Id<"tags">; name: string; color: string }>;
-}
-
 export function SongDetailView({
   song,
   workspaceId,
   workspaceSlug,
 }: {
-  song: Song;
+  song: KanbanSong;
   workspaceId: Id<"workspaces">;
   workspaceSlug: string;
 }) {
@@ -69,8 +56,9 @@ export function SongDetailView({
     <div className="flex h-screen flex-col">
       <SongHeader
         song={song}
+        workspaceId={workspaceId}
         workspaceSlug={workspaceSlug}
-        workspaceName={(song as Song & { workspaceName?: string }).workspaceName}
+        workspaceName={(song as KanbanSong & { workspaceName?: string }).workspaceName}
         onOpenDetails={() => setDetailsOpen(true)}
       />
 

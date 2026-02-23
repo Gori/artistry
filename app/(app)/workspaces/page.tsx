@@ -49,7 +49,10 @@ export default function WorkspacesPage() {
     <div className="mx-auto max-w-4xl px-4 py-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Workspaces</h1>
+          <h1
+            className="text-6xl tracking-tight"
+            style={{ fontFamily: '"Dreaming Outloud", cursive' }}
+          >Workspaces</h1>
           <p className="text-muted-foreground">
             Select a workspace or create a new one
           </p>

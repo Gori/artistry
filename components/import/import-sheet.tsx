@@ -66,19 +66,13 @@ interface ExpandedContent {
   audio: NoteAudio[];
 }
 
+import { STAGE_LABELS } from "@/lib/kanban/types";
+
 interface Song {
   _id: Id<"songs">;
   title: string;
   stage: string;
 }
-
-const STAGE_LABELS: Record<string, string> = {
-  idea: "Idea",
-  writing: "Writing",
-  producing: "Producing",
-  mixing: "Mixing",
-  done: "Done",
-};
 
 // Convert base64 string to File object for upload
 function base64ToFile(

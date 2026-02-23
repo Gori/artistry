@@ -20,10 +20,21 @@ export const listBySong = query({
 
     if (!membership) return [];
 
-    return await ctx.db
+    const versions = await ctx.db
       .query("songVersions")
       .withIndex("by_song", (q) => q.eq("songId", args.songId))
       .collect();
+
+    return await Promise.all(
+      versions.map(async (version) => ({
+        ...version,
+        audioUrl:
+          version.audioUrl ??
+          (version.audioFileId
+            ? await ctx.storage.getUrl(version.audioFileId)
+            : null),
+      }))
+    );
   },
 });
 

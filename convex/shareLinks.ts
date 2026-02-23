@@ -72,10 +72,32 @@ export const getByToken = query({
       .withIndex("by_song", (q) => q.eq("songId", song._id))
       .collect();
 
-    const audioNotes = await ctx.db
+    const versionsRaw = await Promise.all(
+      versions.map(async (version) => ({
+        ...version,
+        audioUrl:
+          version.audioUrl ??
+          (version.audioFileId
+            ? await ctx.storage.getUrl(version.audioFileId)
+            : null),
+      }))
+    );
+
+    const audioNotesRaw = await ctx.db
       .query("audioNotes")
       .withIndex("by_song", (q) => q.eq("songId", song._id))
       .collect();
+
+    const audioNotesWithUrls = await Promise.all(
+      audioNotesRaw.map(async (note) => ({
+        ...note,
+        audioUrl:
+          note.audioUrl ??
+          (note.audioFileId
+            ? await ctx.storage.getUrl(note.audioFileId)
+            : null),
+      }))
+    );
 
     const tags = await Promise.all(
       (song.tagIds ?? []).map((id) => ctx.db.get(id))
@@ -88,8 +110,8 @@ export const getByToken = query({
     return {
       song: songWithTags,
       lyrics,
-      versions,
-      audioNotes,
+      versions: versionsRaw,
+      audioNotes: audioNotesWithUrls,
     };
   },
 });

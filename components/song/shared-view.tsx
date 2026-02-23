@@ -32,21 +32,7 @@ interface SharedData {
   }>;
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  idea: "Idea",
-  writing: "Writing",
-  producing: "Producing",
-  mixing: "Mixing",
-  done: "Done",
-};
-
-const STAGE_BADGE_CLASSES: Record<string, string> = {
-  idea: "border-stage-idea/25 bg-stage-idea/10 text-stage-idea",
-  writing: "border-stage-writing/25 bg-stage-writing/10 text-stage-writing",
-  producing: "border-stage-producing/25 bg-stage-producing/10 text-stage-producing",
-  mixing: "border-stage-mixing/25 bg-stage-mixing/10 text-stage-mixing",
-  done: "border-stage-done/25 bg-stage-done/10 text-stage-done",
-};
+import { STAGE_LABELS, STAGE_BADGE_CLASSES } from "@/lib/kanban/types";
 
 export function SharedSongView({ data }: { data: SharedData }) {
   const { song, lyrics, versions, audioNotes } = data;

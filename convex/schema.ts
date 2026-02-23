@@ -34,10 +34,17 @@ const schema = defineSchema({
     tempo: v.optional(v.string()),
     key: v.optional(v.string()),
     tagIds: v.optional(v.array(v.id("tags"))),
+    groupId: v.optional(v.id("songGroups")),
+    groupPosition: v.optional(v.number()),
   })
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_and_stage", ["workspaceId", "stage"])
     .index("by_workspace_and_slug", ["workspaceId", "slug"]),
+  songGroups: defineTable({
+    name: v.string(),
+    workspaceId: v.id("workspaces"),
+    position: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
   tags: defineTable({
     name: v.string(),
     color: v.string(),
@@ -57,14 +64,16 @@ const schema = defineSchema({
   songVersions: defineTable({
     songId: v.id("songs"),
     title: v.string(),
-    audioUrl: v.string(),
+    audioUrl: v.optional(v.string()),
+    audioFileId: v.optional(v.id("_storage")),
     createdBy: v.id("users"),
     notes: v.optional(v.string()),
   }).index("by_song", ["songId"]),
   audioNotes: defineTable({
     songId: v.id("songs"),
     title: v.optional(v.string()),
-    audioUrl: v.string(),
+    audioUrl: v.optional(v.string()),
+    audioFileId: v.optional(v.id("_storage")),
     createdBy: v.id("users"),
     transcription: v.optional(v.string()),
     transcriptionStatus: v.optional(
