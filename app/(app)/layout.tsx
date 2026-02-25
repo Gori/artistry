@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { CommandPaletteProvider } from "@/components/command-palette";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -33,5 +34,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <CommandPaletteProvider>{children}</CommandPaletteProvider>;
 }

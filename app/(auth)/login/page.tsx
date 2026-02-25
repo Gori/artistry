@@ -4,7 +4,6 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,9 +52,6 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-primary">
-            <Music className="size-6 text-primary-foreground" />
-          </div>
           <CardTitle
             className="text-6xl tracking-tight"
             style={{ fontFamily: '"Dreaming Outloud", cursive' }}

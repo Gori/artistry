@@ -68,6 +68,16 @@ const schema = defineSchema({
     audioFileId: v.optional(v.id("_storage")),
     createdBy: v.id("users"),
     notes: v.optional(v.string()),
+    category: v.optional(
+      v.union(
+        v.literal("demo"),
+        v.literal("rough"),
+        v.literal("mix"),
+        v.literal("final")
+      )
+    ),
+    isCurrent: v.optional(v.boolean()),
+    duration: v.optional(v.number()),
   }).index("by_song", ["songId"]),
   audioNotes: defineTable({
     songId: v.id("songs"),
@@ -92,6 +102,34 @@ const schema = defineSchema({
     expiresAt: v.optional(v.number()),
   })
     .index("by_token", ["token"])
+    .index("by_song", ["songId"]),
+  lyricsSnapshots: defineTable({
+    songId: v.id("songs"),
+    content: v.string(),
+    createdBy: v.id("users"),
+    label: v.optional(v.string()),
+  }).index("by_song", ["songId"]),
+  references: defineTable({
+    songId: v.id("songs"),
+    type: v.union(
+      v.literal("image"),
+      v.literal("link"),
+      v.literal("text"),
+      v.literal("color")
+    ),
+    content: v.string(),
+    title: v.optional(v.string()),
+    position: v.number(),
+    createdBy: v.id("users"),
+  }).index("by_song", ["songId"]),
+  versionMarkers: defineTable({
+    versionId: v.id("songVersions"),
+    songId: v.id("songs"),
+    timestamp: v.number(),
+    text: v.string(),
+    createdBy: v.id("users"),
+  })
+    .index("by_version", ["versionId"])
     .index("by_song", ["songId"]),
 });
 

@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio/player";
 import { AudioUpload } from "@/components/audio/upload";
+import type { ActiveAudio } from "@/components/audio/persistent-player";
 
 const STATUS_STYLES: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   pending: { label: "Pending", variant: "secondary" },
@@ -16,7 +18,13 @@ const STATUS_STYLES: Record<string, { label: string; variant: "default" | "secon
   failed: { label: "Failed", variant: "destructive" },
 };
 
-export function AudioNotesPanel({ songId }: { songId: Id<"songs"> }) {
+export function AudioNotesPanel({
+  songId,
+  onPlay,
+}: {
+  songId: Id<"songs">;
+  onPlay?: (audio: ActiveAudio) => void;
+}) {
   const audioNotes = useQuery(api.audioNotes.listBySong, { songId });
   const [uploading, setUploading] = useState(false);
 
@@ -57,11 +65,29 @@ export function AudioNotesPanel({ songId }: { songId: Id<"songs"> }) {
                   <h4 className="text-sm font-medium">
                     {note.title ?? "Untitled"}
                   </h4>
-                  {status && (
-                    <Badge variant={status.variant} className="text-xs">
-                      {status.label}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {note.audioUrl && onPlay && (
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() =>
+                          onPlay({
+                            src: note.audioUrl!,
+                            title: note.title ?? "Audio Note",
+                            type: "audioNote",
+                          })
+                        }
+                        title="Play in persistent player"
+                      >
+                        <Play className="size-3" />
+                      </Button>
+                    )}
+                    {status && (
+                      <Badge variant={status.variant} className="text-xs">
+                        {status.label}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 {note.audioUrl && (
                   <div className="mb-2">

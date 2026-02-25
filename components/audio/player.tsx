@@ -12,21 +12,27 @@ import { Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generatePeaks } from "@/lib/waveform";
 import { cn } from "@/lib/utils";
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
+import { formatDuration } from "@/lib/format-time";
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+
+export interface AudioMarker {
+  timestamp: number;
+  text: string;
+}
 
 export function AudioPlayer({
   src,
   className,
+  size = "compact",
+  markers,
+  onMarkerAdd,
 }: {
   src: string;
   className?: string;
+  size?: "compact" | "large";
+  markers?: AudioMarker[];
+  onMarkerAdd?: (timestamp: number) => void;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -42,9 +48,10 @@ export function AudioPlayer({
   const [canvasWidth, setCanvasWidth] = useState(0);
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [scrubbing, setScrubbing] = useState(false);
+  const [hoveredMarker, setHoveredMarker] = useState<AudioMarker | null>(null);
 
-  const H = 40;
-  const BAR_W = 2;
+  const H = size === "large" ? 80 : 40;
+  const BAR_W = size === "large" ? 3 : 2;
   const GAP = 1;
 
   // -- Audio element ---------------------------------------------------------
@@ -88,7 +95,8 @@ export function AudioPlayer({
 
   useEffect(() => {
     let cancelled = false;
-    const count = canvasWidth > 0 ? Math.floor(canvasWidth / (BAR_W + GAP)) : 200;
+    const count =
+      canvasWidth > 0 ? Math.floor(canvasWidth / (BAR_W + GAP)) : 200;
     generatePeaks(src, count)
       .then((d) => {
         if (cancelled) return;
@@ -99,7 +107,7 @@ export function AudioPlayer({
     return () => {
       cancelled = true;
     };
-  }, [src, canvasWidth]);
+  }, [src, canvasWidth, BAR_W]);
 
   // -- Resize ----------------------------------------------------------------
 
@@ -173,7 +181,25 @@ export function AudioPlayer({
       ctx.fillRect(hoverX - 0.5, 0, 1, H);
       ctx.globalAlpha = 1;
     }
-  }, [peaks, canvasWidth, currentTime, duration, hoverX, scrubbing]);
+
+    // Markers
+    if (markers && markers.length > 0 && duration > 0) {
+      for (const marker of markers) {
+        const mx = (marker.timestamp / duration) * canvasWidth;
+        const triSize = size === "large" ? 6 : 4;
+
+        ctx.fillStyle = playedColor;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(mx, H);
+        ctx.lineTo(mx - triSize, H - triSize * 1.5);
+        ctx.lineTo(mx + triSize, H - triSize * 1.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }, [peaks, canvasWidth, currentTime, duration, hoverX, scrubbing, markers, H, BAR_W, size]);
 
   // -- rAF loop --------------------------------------------------------------
 
@@ -248,17 +274,43 @@ export function AudioPlayer({
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const rect = waveformRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setHoverX(Math.max(0, Math.min(canvasWidth, e.clientX - rect.left)));
+      const x = Math.max(0, Math.min(canvasWidth, e.clientX - rect.left));
+      setHoverX(x);
       if (scrubbing && duration > 0) seek(getFraction(e) * duration);
+
+      // Check marker hover
+      if (markers && markers.length > 0 && duration > 0) {
+        const threshold = size === "large" ? 8 : 6;
+        const found = markers.find((m) => {
+          const mx = (m.timestamp / duration) * canvasWidth;
+          return Math.abs(x - mx) < threshold;
+        });
+        setHoveredMarker(found ?? null);
+      }
     },
-    [scrubbing, duration, getFraction, seek, canvasWidth]
+    [scrubbing, duration, getFraction, seek, canvasWidth, markers, size]
   );
 
   const onPointerUp = useCallback(() => setScrubbing(false), []);
   const onPointerLeave = useCallback(() => {
     setHoverX(null);
     setScrubbing(false);
+    setHoveredMarker(null);
   }, []);
+
+  const onDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!onMarkerAdd || duration === 0) return;
+      const rect = waveformRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const fraction = Math.max(
+        0,
+        Math.min(1, (e.clientX - rect.left) / rect.width)
+      );
+      onMarkerAdd(fraction * duration);
+    },
+    [onMarkerAdd, duration]
+  );
 
   // -- Keyboard --------------------------------------------------------------
 
@@ -323,23 +375,27 @@ export function AudioPlayer({
         aria-valuemin={0}
         aria-valuemax={Math.floor(duration)}
         aria-valuenow={Math.floor(currentTime)}
-        aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+        aria-valuetext={`${formatDuration(currentTime)} of ${formatDuration(duration)}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
+        onDoubleClick={onDoubleClick}
       >
         {!peaks && (
           <div className="absolute inset-0 flex items-center justify-center gap-[1px]">
             {Array.from({
-              length: Math.max(1, Math.floor((canvasWidth || 120) / (BAR_W + GAP))),
+              length: Math.max(
+                1,
+                Math.floor((canvasWidth || 120) / (BAR_W + GAP))
+              ),
             }).map((_, i) => (
               <div
                 key={i}
                 className="animate-pulse rounded-sm bg-muted"
                 style={{
                   width: BAR_W,
-                  height: `${4 + Math.abs(Math.sin(i * 0.25)) * 20}px`,
+                  height: `${4 + Math.abs(Math.sin(i * 0.25)) * (size === "large" ? 40 : 20)}px`,
                 }}
               />
             ))}
@@ -350,12 +406,29 @@ export function AudioPlayer({
           className={cn("block", !peaks && "opacity-0")}
           style={{ width: canvasWidth || "100%", height: H }}
         />
+        {/* Marker tooltip */}
+        {hoveredMarker && hoverX !== null && (
+          <div
+            className="absolute bottom-full mb-1 -translate-x-1/2 rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border whitespace-nowrap pointer-events-none z-10"
+            style={{
+              left:
+                duration > 0
+                  ? (hoveredMarker.timestamp / duration) * canvasWidth
+                  : 0,
+            }}
+          >
+            <span className="text-muted-foreground mr-1">
+              {formatDuration(hoveredMarker.timestamp)}
+            </span>
+            {hoveredMarker.text}
+          </div>
+        )}
       </div>
 
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {formatTime(currentTime)}
+        {formatDuration(currentTime)}
         <span className="mx-0.5 opacity-40">/</span>
-        {formatTime(duration)}
+        {formatDuration(duration)}
       </span>
 
       <button

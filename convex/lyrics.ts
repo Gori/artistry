@@ -99,6 +99,30 @@ export const save = mutation({
       .unique();
 
     if (existing) {
+      // Auto-snapshot: check if content changed significantly or enough time passed
+      const contentDiff = Math.abs(args.content.length - existing.content.length);
+      const snapshots = await ctx.db
+        .query("lyricsSnapshots")
+        .withIndex("by_song", (q) => q.eq("songId", args.songId))
+        .order("desc")
+        .first();
+
+      const timeSinceLastSnapshot = snapshots
+        ? Date.now() - snapshots._creationTime
+        : Infinity;
+      const fiveMinutes = 5 * 60 * 1000;
+
+      if (
+        existing.content !== args.content &&
+        (contentDiff > 100 || timeSinceLastSnapshot > fiveMinutes)
+      ) {
+        await ctx.db.insert("lyricsSnapshots", {
+          songId: args.songId,
+          content: existing.content,
+          createdBy: userId,
+        });
+      }
+
       await ctx.db.patch(existing._id, {
         content: args.content,
         updatedBy: userId,

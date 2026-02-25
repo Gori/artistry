@@ -18,6 +18,8 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { type Extension, StateField } from "@codemirror/state";
+import { syllableCounterPlugin } from "@/lib/codemirror/syllable-counter";
+import { createChordOverlayPlugin } from "@/lib/codemirror/chord-overlay";
 
 const SECTION_COLORS: Record<string, string> = {
   verse: "var(--section-verse)",
@@ -188,6 +190,9 @@ export function MarkdownEditor({
   additionalExtensions,
   onEditorContextMenu,
   onView,
+  showSyllables,
+  showChords,
+  songKey,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -198,6 +203,12 @@ export function MarkdownEditor({
   onEditorContextMenu?: (info: EditorContextMenuInfo) => void;
   /** Called when the EditorView is created (or null on unmount) */
   onView?: (view: EditorView | null) => void;
+  /** Show syllable counts at end of each line */
+  showSyllables?: boolean;
+  /** Show chord badges for {Chord} syntax */
+  showChords?: boolean;
+  /** Song key for diatonic chord coloring */
+  songKey?: string;
 }) {
   const handleChange = useCallback(
     (val: string) => {
@@ -273,6 +284,11 @@ export function MarkdownEditor({
     };
   }, []);
 
+  const chordPlugin = useMemo(
+    () => (showChords ? createChordOverlayPlugin(songKey) : null),
+    [showChords, songKey]
+  );
+
   const extensions = useMemo(
     () => [
       markdown({ base: markdownLanguage, codeLanguages: languages }),
@@ -283,9 +299,11 @@ export function MarkdownEditor({
       EditorView.lineWrapping,
       contextMenuHandler,
       viewCapture,
+      ...(showSyllables ? [syllableCounterPlugin] : []),
+      ...(chordPlugin ? [chordPlugin] : []),
       ...(additionalExtensions ?? []),
     ],
-    [additionalExtensions, contextMenuHandler, viewCapture]
+    [additionalExtensions, contextMenuHandler, viewCapture, showSyllables, chordPlugin]
   );
 
   const basicSetup: ReactCodeMirrorProps["basicSetup"] = useMemo(

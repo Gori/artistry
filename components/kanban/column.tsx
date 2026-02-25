@@ -25,6 +25,8 @@ import {
   GROUP_BADGE_CLASSES,
 } from "@/lib/kanban/types";
 
+type ViewMode = "stages" | "groups";
+
 export type ColumnVariant =
   | { kind: "stage"; stage: Stage }
   | { kind: "group"; groupId: string; groupName: string; isUngrouped?: boolean; colorIndex?: number };
@@ -34,11 +36,13 @@ export function KanbanColumn({
   songs,
   workspaceId,
   workspaceSlug,
+  viewMode,
 }: {
   variant: ColumnVariant;
   songs: KanbanSong[];
   workspaceId: Id<"workspaces">;
   workspaceSlug: string;
+  viewMode: ViewMode;
 }) {
   const droppableId =
     variant.kind === "stage" ? variant.stage : variant.groupId;
@@ -109,6 +113,7 @@ export function KanbanColumn({
                 key={song._id}
                 song={song}
                 workspaceSlug={workspaceSlug}
+                viewMode={viewMode}
               />
             ))}
           </SortableContext>

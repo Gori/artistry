@@ -8,6 +8,10 @@ interface PromptContext {
   lineNumber: number;
   /** Whether the user had text selected */
   hasSelection: boolean;
+  /** For free-form action: user-typed instruction */
+  userInstruction?: string;
+  /** For rewrite-emotion action: target emotion */
+  emotion?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +268,76 @@ Cover:
 
 ${ctx.targetText}`,
           };
+
+    case "continue-writing":
+      return {
+        system: `${SONGWRITING_PREAMBLE}
+
+TASK: Continue writing the song naturally from where it left off.
+
+Steps:
+1. Analyze the last 10-15 lines: identify meter, rhyme scheme, register, emotional trajectory.
+2. Write 2-4 more lines that continue organically — same structure, same voice.
+3. If the song seems to be building toward a section change (verse→chorus, etc.), follow that arc.
+4. Do NOT repeat images or phrases already used.
+5. Match syllable counts and stress patterns of the existing lines.
+
+Write only the continuation. No explanation, no markers unless continuing into a new section.`,
+        user: `Here are the current lyrics:
+
+${ctx.fullLyrics}
+
+Continue writing from where this leaves off.`,
+      };
+
+    case "free-form":
+      return {
+        system: `${SONGWRITING_PREAMBLE}
+
+TASK: Follow the user's instruction as a skilled co-writer would. Apply all songwriting principles (syllable matching, meter, rhyme scheme, singability) unless the instruction explicitly asks to change them.
+
+Be concise. Output only the result, no commentary.`,
+        user: ctx.hasSelection
+          ? `Full lyrics for context:
+
+${ctx.fullLyrics}
+
+The user has selected this passage:
+"${ctx.targetText}"
+
+User instruction: ${ctx.userInstruction ?? "Improve this"}`
+          : `Here are the lyrics:
+
+${ctx.fullLyrics}
+
+User instruction: ${ctx.userInstruction ?? "Improve this"}`,
+      };
+
+    case "rewrite-emotion":
+      return {
+        system: `${SONGWRITING_PREAMBLE}
+
+TASK: Rewrite the ${ctx.hasSelection ? "selected passage" : "lyrics"} targeting the emotion: **${ctx.emotion ?? "Tender"}**.
+
+Rules:
+1. Preserve the meter and syllable counts as closely as possible.
+2. Maintain the existing rhyme scheme.
+3. Shift word choices, imagery, and tone to evoke the target emotion.
+4. Keep it singable — open vowels, natural stress patterns.
+5. The rewrite should feel like the same song in a different emotional key.
+
+Output only the rewritten text. No commentary.`,
+        user: ctx.hasSelection
+          ? `Full lyrics for context:
+
+${ctx.fullLyrics}
+
+Rewrite this passage with a ${ctx.emotion ?? "Tender"} tone:
+"${ctx.targetText}"`
+          : `Rewrite these lyrics with a ${ctx.emotion ?? "Tender"} tone:
+
+${ctx.targetText}`,
+      };
 
     case "check-grammar":
       return ctx.hasSelection

@@ -714,3 +714,60 @@
   font-size: 13px;
   font-style: italic;
 }
+
+/* ------------------------------------------------------------------ */
+/* Focus Mode                                                          */
+/* ------------------------------------------------------------------ */
+
+.focus-mode .cm-editor {
+  font-size: 20px;
+}
+
+.focus-mode .cm-editor .cm-scroller {
+  padding: 48px 20%;
+  line-height: 1.7;
+}
+
+/* ------------------------------------------------------------------ */
+/* Syllable Counter                                                    */
+/* ------------------------------------------------------------------ */
+
+.cm-syllable-count {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  opacity: 0.5;
+  font-family: "PT Root UI", sans-serif;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Chord Overlay                                                       */
+/* ------------------------------------------------------------------ */
+
+.cm-chord-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 1px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "PT Root UI", sans-serif;
+  vertical-align: baseline;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.cm-chord-diatonic {
+  background: oklch(from var(--primary) l c h / 0.15);
+  color: var(--primary);
+}
+
+.cm-chord-nondiatonic {
+  background: oklch(from var(--warning) l c h / 0.15);
+  color: var(--warning);
+}

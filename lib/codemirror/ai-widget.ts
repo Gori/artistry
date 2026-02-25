@@ -67,6 +67,9 @@ export interface AIWidgetCallbacks {
 const ACTION_HEADERS: Record<LyricsAction, string> = {
   alternatives: "5 Alternatives",
   "add-verse": "New Verse",
+  "continue-writing": "Continue Writing",
+  "free-form": "AI Response",
+  "rewrite-emotion": "Emotional Rewrite",
   "explain-theme": "Theme Analysis",
   "find-synonyms": "Synonyms",
   "find-rhymes": "Rhyming Words",
@@ -238,18 +241,37 @@ class AIBlockWidget extends WidgetType {
   private buildActions(container: HTMLElement) {
     container.innerHTML = "";
 
-    if (this.data.action === "add-verse" && this.data.content) {
+    if (
+      (this.data.action === "add-verse" ||
+        this.data.action === "continue-writing" ||
+        this.data.action === "rewrite-emotion" ||
+        this.data.action === "free-form") &&
+      this.data.content
+    ) {
       const acceptBtn = document.createElement("button");
       acceptBtn.className = "cm-ai-btn cm-ai-btn-accept";
-      acceptBtn.textContent = "Insert verse";
+      acceptBtn.textContent =
+        this.data.action === "rewrite-emotion" || this.data.action === "free-form"
+          ? "Replace"
+          : "Insert";
       acceptBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Insert at end of the target range
-        this.callbacksRef.current.onAcceptText(
-          "\n\n" + this.data.content,
-          this.data.selTo
-        );
+        if (
+          this.data.action === "rewrite-emotion" ||
+          (this.data.action === "free-form" && this.data.hasSelection)
+        ) {
+          this.callbacksRef.current.onReplaceLine(
+            this.data.selFrom,
+            this.data.selTo,
+            this.data.content
+          );
+        } else {
+          this.callbacksRef.current.onAcceptText(
+            "\n\n" + this.data.content,
+            this.data.selTo
+          );
+        }
       };
       container.appendChild(acceptBtn);
     }

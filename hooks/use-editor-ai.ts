@@ -33,7 +33,8 @@ export function useEditorAI() {
       selFrom: number,
       selTo: number,
       pos: number,
-      hasSelection: boolean
+      hasSelection: boolean,
+      extra?: { userInstruction?: string; emotion?: string }
     ) => {
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -61,6 +62,8 @@ export function useEditorAI() {
             fullLyrics,
             lineNumber,
             hasSelection,
+            ...(extra?.userInstruction && { userInstruction: extra.userInstruction }),
+            ...(extra?.emotion && { emotion: extra.emotion }),
           }),
           signal: controller.signal,
         });

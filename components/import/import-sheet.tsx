@@ -1,20 +1,28 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useMutation } from "convex/react";
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
   ChevronRight,
-  FileText,
   Folder,
   Image,
   Import,
   Loader2,
   Mic,
+  Plus,
+  ListPlus,
   Search,
-  StickyNote,
 } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -27,14 +35,17 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { STAGE_LABELS } from "@/lib/kanban/types";
 
-type Step = "folders" | "browse";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type Step = "folders" | "carousel";
 
 interface AppleFolder {
   name: string;
@@ -49,13 +60,13 @@ interface AppleNoteHeader {
 }
 
 interface NoteImage {
-  data: string; // base64
+  data: string;
   mimeType: string;
 }
 
 interface NoteAudio {
   name: string;
-  data: string; // base64
+  data: string;
   mimeType: string;
 }
 
@@ -66,15 +77,16 @@ interface ExpandedContent {
   audio: NoteAudio[];
 }
 
-import { STAGE_LABELS } from "@/lib/kanban/types";
-
 interface Song {
   _id: Id<"songs">;
   title: string;
   stage: string;
 }
 
-// Convert base64 string to File object for upload
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function base64ToFile(
   base64: string,
   filename: string,
@@ -87,6 +99,10 @@ function base64ToFile(
   }
   return new File([arr], filename, { type: mimeType });
 }
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 
 export function ImportSheet({
   open,
@@ -107,24 +123,38 @@ export function ImportSheet({
   const [notesLoading, setNotesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Browse step state
-  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
-  const [expandedContent, setExpandedContent] = useState<ExpandedContent | null>(
-    null
-  );
-  const [contentLoading, setContentLoading] = useState(false);
+  // Carousel state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [noteContents, setNoteContents] = useState<
+    Map<string, ExpandedContent>
+  >(new Map());
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
-  const [editTitle, setEditTitle] = useState("");
-  const [target, setTarget] = useState<"lyrics" | "notes">("notes");
   const [acting, setActing] = useState(false);
   const [actingLabel, setActingLabel] = useState("");
+  const [songPickerOpen, setSongPickerOpen] = useState(false);
 
   const importNew = useMutation(api.songs.importNew);
   const appendNotes = useMutation(api.notes.append);
-  const appendLyrics = useMutation(api.lyrics.append);
   const createAudioNote = useMutation(api.audioNotes.create);
 
-  // Upload a file to Vercel Blob and return the public URL
+  // Current note helpers
+  const currentNote = noteHeaders[currentIndex] ?? null;
+  const currentContent = currentNote
+    ? noteContents.get(currentNote.id) ?? null
+    : null;
+  const isCurrentLoading = currentNote
+    ? loadingIds.has(currentNote.id) && !noteContents.has(currentNote.id)
+    : false;
+  const isCurrentImported = currentNote
+    ? importedIds.has(currentNote.id)
+    : false;
+  const total = noteHeaders.length;
+
+  // -------------------------------------------------------------------------
+  // File upload
+  // -------------------------------------------------------------------------
+
   async function uploadFile(file: File): Promise<{ url: string }> {
     const formData = new FormData();
     formData.append("file", file);
@@ -137,13 +167,11 @@ export function ImportSheet({
     return { url };
   }
 
-  // Upload images and replace {{IMG_N}} placeholders with markdown image links
   async function processContentWithImages(
     body: string,
     images: NoteImage[]
   ): Promise<string> {
     if (images.length === 0) return body;
-
     let processed = body;
     for (let i = 0; i < images.length; i++) {
       const img = images[i];
@@ -155,7 +183,6 @@ export function ImportSheet({
     return processed;
   }
 
-  // Upload audio files and create audio notes for a song
   async function createAudioNotes(
     songId: Id<"songs">,
     audioFiles: NoteAudio[]
@@ -167,6 +194,82 @@ export function ImportSheet({
       await createAudioNote({ songId, title, audioUrl: url });
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Prefetch engine
+  // -------------------------------------------------------------------------
+
+  const prefetchAround = useCallback(
+    async (index: number) => {
+      const WINDOW = 3;
+      const idsToFetch: string[] = [];
+
+      for (let i = Math.max(0, index - 1); i <= index + WINDOW; i++) {
+        if (i < noteHeaders.length) {
+          const id = noteHeaders[i].id;
+          if (!noteContents.has(id) && !loadingIds.has(id)) {
+            idsToFetch.push(id);
+          }
+        }
+      }
+
+      if (idsToFetch.length === 0) return;
+
+      setLoadingIds((prev) => {
+        const next = new Set(prev);
+        for (const id of idsToFetch) next.add(id);
+        return next;
+      });
+
+      try {
+        const res = await fetch("/api/apple-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: idsToFetch }),
+        });
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+          setNoteContents((prev) => {
+            const next = new Map(prev);
+            for (const note of data) {
+              const cleanTitle = (note.title || "")
+                .replace(/[\r\n\u2028\u2029]+/g, " ")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 80);
+              next.set(note.id, {
+                title: cleanTitle || "Untitled",
+                body: note.body,
+                images: note.images ?? [],
+                audio: note.audio ?? [],
+              });
+            }
+            return next;
+          });
+        }
+      } catch {
+        // Silently fail - user can still navigate, content will try again
+      } finally {
+        setLoadingIds((prev) => {
+          const next = new Set(prev);
+          for (const id of idsToFetch) next.delete(id);
+          return next;
+        });
+      }
+    },
+    [noteHeaders, noteContents, loadingIds]
+  );
+
+  useEffect(() => {
+    if (step === "carousel" && noteHeaders.length > 0) {
+      void prefetchAround(currentIndex);
+    }
+  }, [currentIndex, step, noteHeaders.length, prefetchAround]);
+
+  // -------------------------------------------------------------------------
+  // Folder loading
+  // -------------------------------------------------------------------------
 
   const fetchFolders = useCallback(async () => {
     setFolderLoading(true);
@@ -198,7 +301,7 @@ export function ImportSheet({
     setSelectedFolder(folderPath);
     setNotesLoading(true);
     setError(null);
-    setStep("browse");
+    setStep("carousel");
     try {
       const res = await fetch(
         `/api/apple-notes?folder=${encodeURIComponent(folderPath)}`
@@ -209,6 +312,7 @@ export function ImportSheet({
         return;
       }
       setNoteHeaders(data);
+      setCurrentIndex(0);
     } catch {
       setError("Failed to load notes from this folder.");
     } finally {
@@ -216,87 +320,67 @@ export function ImportSheet({
     }
   }
 
-  async function handleExpandNote(noteId: string) {
-    if (expandedNoteId === noteId) {
-      setExpandedNoteId(null);
-      setExpandedContent(null);
-      return;
-    }
+  // -------------------------------------------------------------------------
+  // Navigation
+  // -------------------------------------------------------------------------
 
-    setExpandedNoteId(noteId);
-    setExpandedContent(null);
-    setContentLoading(true);
-
-    try {
-      const res = await fetch("/api/apple-notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [noteId] }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Failed to fetch note content");
-        setExpandedNoteId(null);
-        return;
-      }
-
-      const note = data[0];
-      if (note) {
-        setExpandedContent({
-          title: note.title,
-          body: note.body,
-          images: note.images ?? [],
-          audio: note.audio ?? [],
-        });
-        const clean = (note.title || "")
-          .replace(/[\r\n\u2028\u2029]+/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 80);
-        setEditTitle(clean || "Untitled");
-        setTarget("notes");
-      }
-    } catch {
-      setError("Failed to load note content.");
-      setExpandedNoteId(null);
-    } finally {
-      setContentLoading(false);
+  function goNext() {
+    if (currentIndex < total - 1) {
+      setCurrentIndex((i) => i + 1);
     }
   }
 
+  function goPrev() {
+    if (currentIndex > 0) {
+      setCurrentIndex((i) => i - 1);
+    }
+  }
+
+  function jumpTo(n: number) {
+    const clamped = Math.max(0, Math.min(n, total - 1));
+    setCurrentIndex(clamped);
+  }
+
+  // -------------------------------------------------------------------------
+  // Import actions
+  // -------------------------------------------------------------------------
+
   async function handleCreateSong() {
-    if (!expandedContent || !expandedNoteId) return;
+    if (!currentContent || !currentNote || acting) return;
     setActing(true);
 
     try {
-      const hasImages = expandedContent.images.length > 0;
-      const hasAudio = expandedContent.audio.length > 0;
+      const hasImages = currentContent.images.length > 0;
+      const hasAudio = currentContent.audio.length > 0;
 
-      // Upload images and embed in content
       if (hasImages) setActingLabel("Uploading images...");
       const content = await processContentWithImages(
-        expandedContent.body,
-        expandedContent.images
+        currentContent.body,
+        currentContent.images
       );
 
-      // Create the song
       setActingLabel(hasAudio ? "Creating song..." : "");
       const { id: songId } = await importNew({
-        title: editTitle,
+        title: currentContent.title,
         workspaceId,
         content,
-        target,
+        target: "notes",
       });
 
-      // Create audio notes
       if (hasAudio) {
         setActingLabel("Uploading audio...");
-        await createAudioNotes(songId, expandedContent.audio);
+        await createAudioNotes(songId, currentContent.audio);
       }
 
-      setImportedIds((prev) => new Set([...prev, expandedNoteId]));
-      setExpandedNoteId(null);
-      setExpandedContent(null);
+      setImportedIds((prev) => new Set([...prev, currentNote.id]));
+      toast.success(`Created "${currentContent.title}"`);
+
+      // Auto-advance
+      if (currentIndex < total - 1) {
+        setCurrentIndex((i) => i + 1);
+      }
+    } catch {
+      toast.error("Failed to create song");
     } finally {
       setActing(false);
       setActingLabel("");
@@ -304,451 +388,612 @@ export function ImportSheet({
   }
 
   async function handleAddToSong(songId: Id<"songs">) {
-    if (!expandedContent || !expandedNoteId) return;
+    if (!currentContent || !currentNote || acting) return;
     setActing(true);
+    setSongPickerOpen(false);
 
     try {
-      const hasImages = expandedContent.images.length > 0;
-      const hasAudio = expandedContent.audio.length > 0;
+      const hasImages = currentContent.images.length > 0;
+      const hasAudio = currentContent.audio.length > 0;
 
-      // Upload images and embed in content
       if (hasImages) setActingLabel("Uploading images...");
       const content = await processContentWithImages(
-        expandedContent.body,
-        expandedContent.images
+        currentContent.body,
+        currentContent.images
       );
 
-      // Append content
       setActingLabel(hasAudio ? "Saving content..." : "");
-      if (target === "notes") {
-        await appendNotes({ songId, content });
-      } else {
-        await appendLyrics({ songId, content });
-      }
+      await appendNotes({ songId, content });
 
-      // Create audio notes
       if (hasAudio) {
         setActingLabel("Uploading audio...");
-        await createAudioNotes(songId, expandedContent.audio);
+        await createAudioNotes(songId, currentContent.audio);
       }
 
-      setImportedIds((prev) => new Set([...prev, expandedNoteId]));
-      setExpandedNoteId(null);
-      setExpandedContent(null);
+      const songTitle =
+        songs.find((s) => s._id === songId)?.title ?? "song";
+      setImportedIds((prev) => new Set([...prev, currentNote.id]));
+      toast.success(`Added to "${songTitle}"`);
+
+      // Auto-advance
+      if (currentIndex < total - 1) {
+        setCurrentIndex((i) => i + 1);
+      }
+    } catch {
+      toast.error("Failed to add to song");
     } finally {
       setActing(false);
       setActingLabel("");
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Reset
+  // -------------------------------------------------------------------------
+
   function reset() {
     setStep("folders");
     setFolders([]);
     setSelectedFolder(null);
     setNoteHeaders([]);
-    setExpandedNoteId(null);
-    setExpandedContent(null);
-    setContentLoading(false);
+    setCurrentIndex(0);
+    setNoteContents(new Map());
+    setLoadingIds(new Set());
     setImportedIds(new Set());
-    setEditTitle("");
-    setTarget("notes");
     setActing(false);
     setActingLabel("");
+    setSongPickerOpen(false);
     setError(null);
     setFolderLoading(false);
     setNotesLoading(false);
   }
 
-  function handleOpenChange(open: boolean) {
-    if (!open) reset();
-    onOpenChange(open);
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
   }
 
-  const stepDescription: Record<Step, string> = {
-    folders: "Pick a folder from Apple Notes.",
-    browse: selectedFolder
-      ? `Browse notes in "${selectedFolder}".`
-      : "Browse notes.",
-  };
+  function goBackToFolders() {
+    setStep("folders");
+    setNoteHeaders([]);
+    setSelectedFolder(null);
+    setCurrentIndex(0);
+    setNoteContents(new Map());
+    setLoadingIds(new Set());
+    setImportedIds(new Set());
+    setError(null);
+  }
+
+  // -------------------------------------------------------------------------
+  // Keyboard shortcuts
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!open || step !== "carousel") return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't intercept when typing in inputs
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        if (e.key === "Escape") {
+          (e.target as HTMLElement).blur();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowRight":
+          e.preventDefault();
+          goNext();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          goPrev();
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          void handleCreateSong();
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          setSongPickerOpen(true);
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, step, currentIndex, total, acting, currentContent, currentNote]);
+
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="sm:max-w-lg w-full flex flex-col overflow-hidden">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Import className="size-5" />
-            Import from Apple Notes
-          </SheetTitle>
-          <SheetDescription>{stepDescription[step]}</SheetDescription>
-        </SheetHeader>
-
-        {step === "folders" && (
-          <FolderStep
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-none w-[calc(100vw-4rem)] h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] flex flex-col p-0 gap-0 overflow-hidden"
+      >
+        <DialogTitle className="sr-only">Import from Apple Notes</DialogTitle>
+        {step === "folders" ? (
+          <FolderPicker
             folders={folders}
             loading={folderLoading}
             error={error}
             onPickFolder={handlePickFolder}
             onRetry={fetchFolders}
+            onClose={() => handleOpenChange(false)}
           />
-        )}
-
-        {step === "browse" && (
-          <BrowseStep
-            notes={noteHeaders}
-            loading={notesLoading}
+        ) : (
+          <NoteCarousel
+            noteHeaders={noteHeaders}
+            notesLoading={notesLoading}
             error={error}
-            expandedNoteId={expandedNoteId}
-            expandedContent={expandedContent}
-            contentLoading={contentLoading}
-            importedIds={importedIds}
-            editTitle={editTitle}
-            target={target}
+            currentIndex={currentIndex}
+            currentNote={currentNote}
+            currentContent={currentContent}
+            isCurrentLoading={isCurrentLoading}
+            isCurrentImported={isCurrentImported}
+            total={total}
             acting={acting}
             actingLabel={actingLabel}
+            songPickerOpen={songPickerOpen}
             songs={songs}
-            onExpandNote={handleExpandNote}
-            onEditTitleChange={setEditTitle}
-            onTargetChange={setTarget}
+            importedIds={importedIds}
+            selectedFolder={selectedFolder}
+            onNext={goNext}
+            onPrev={goPrev}
+            onJumpTo={jumpTo}
             onCreateSong={handleCreateSong}
             onAddToSong={handleAddToSong}
-            onBack={() => {
-              setStep("folders");
-              setNoteHeaders([]);
-              setSelectedFolder(null);
-              setExpandedNoteId(null);
-              setExpandedContent(null);
-              setImportedIds(new Set());
-            }}
+            onSongPickerOpenChange={setSongPickerOpen}
+            onBack={goBackToFolders}
+            onClose={() => handleOpenChange(false)}
           />
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function FolderStep({
+// ---------------------------------------------------------------------------
+// FolderPicker
+// ---------------------------------------------------------------------------
+
+function FolderPicker({
   folders,
   loading,
   error,
   onPickFolder,
   onRetry,
+  onClose,
 }: {
   folders: AppleFolder[];
   loading: boolean;
   error: string | null;
   onPickFolder: (path: string) => void;
   onRetry: () => void;
+  onClose: () => void;
 }) {
-  if (loading) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-4">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Reading Apple Notes...
-        </p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-4">
-        <p className="text-sm text-destructive text-center">{error}</p>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Try Again
+  return (
+    <div className="flex flex-1 flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center size-8 rounded-md bg-muted">
+            <Import className="size-4 text-muted-foreground" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold leading-none">
+              Import from Apple Notes
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pick a folder to start
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          className="text-muted-foreground"
+        >
+          <span className="sr-only">Close</span>
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <path
+              d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+              fill="currentColor"
+              fillRule="evenodd"
+              clipRule="evenodd"
+            />
+          </svg>
         </Button>
       </div>
-    );
-  }
 
-  return (
-    <div className="flex flex-1 flex-col gap-3 px-4 pb-4 overflow-hidden">
-      <ScrollArea className="flex-1">
-        <div className="space-y-1">
-          {folders.map((folder) => (
-            <button
-              key={folder.path}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-accent transition-colors"
-              onClick={() => onPickFolder(folder.path)}
-            >
-              <Folder className="size-4 shrink-0 text-muted-foreground" />
-              <span className="flex-1 truncate text-sm font-medium">
-                {folder.path}
-              </span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {folder.count}
-              </span>
-            </button>
-          ))}
-        </div>
-      </ScrollArea>
+      {/* Content */}
+      <div className="flex flex-1 items-center justify-center">
+        {loading ? (
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Reading Apple Notes...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Try Again
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full max-w-sm">
+            <ScrollArea className="max-h-[60vh]">
+              <div className="px-6 py-2 space-y-0.5">
+                {folders.map((folder) => (
+                  <button
+                    key={folder.path}
+                    className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-accent transition-colors"
+                    onClick={() => onPickFolder(folder.path)}
+                  >
+                    <Folder className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <span className="flex-1 truncate text-sm">
+                      {folder.path}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {folder.count}
+                    </span>
+                    <ChevronRight className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function BrowseStep({
-  notes,
-  loading,
+// ---------------------------------------------------------------------------
+// NoteCarousel
+// ---------------------------------------------------------------------------
+
+function NoteCarousel({
+  noteHeaders,
+  notesLoading,
   error,
-  expandedNoteId,
-  expandedContent,
-  contentLoading,
-  importedIds,
-  editTitle,
-  target,
+  currentIndex,
+  currentNote,
+  currentContent,
+  isCurrentLoading,
+  isCurrentImported,
+  total,
   acting,
   actingLabel,
+  songPickerOpen,
   songs,
-  onExpandNote,
-  onEditTitleChange,
-  onTargetChange,
+  importedIds,
+  selectedFolder,
+  onNext,
+  onPrev,
+  onJumpTo,
   onCreateSong,
   onAddToSong,
+  onSongPickerOpenChange,
   onBack,
+  onClose,
 }: {
-  notes: AppleNoteHeader[];
-  loading: boolean;
+  noteHeaders: AppleNoteHeader[];
+  notesLoading: boolean;
   error: string | null;
-  expandedNoteId: string | null;
-  expandedContent: ExpandedContent | null;
-  contentLoading: boolean;
-  importedIds: Set<string>;
-  editTitle: string;
-  target: "lyrics" | "notes";
+  currentIndex: number;
+  currentNote: AppleNoteHeader | null;
+  currentContent: ExpandedContent | null;
+  isCurrentLoading: boolean;
+  isCurrentImported: boolean;
+  total: number;
   acting: boolean;
   actingLabel: string;
+  songPickerOpen: boolean;
   songs: Song[];
-  onExpandNote: (noteId: string) => void;
-  onEditTitleChange: (title: string) => void;
-  onTargetChange: (target: "lyrics" | "notes") => void;
+  importedIds: Set<string>;
+  selectedFolder: string | null;
+  onNext: () => void;
+  onPrev: () => void;
+  onJumpTo: (n: number) => void;
   onCreateSong: () => void;
   onAddToSong: (songId: Id<"songs">) => void;
+  onSongPickerOpenChange: (open: boolean) => void;
   onBack: () => void;
+  onClose: () => void;
 }) {
-  const [search, setSearch] = useState("");
+  const counterRef = useRef<HTMLInputElement>(null);
+  const [counterValue, setCounterValue] = useState(String(currentIndex + 1));
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return notes;
-    const q = search.toLowerCase();
-    return notes.filter((n) => n.title.toLowerCase().includes(q));
-  }, [notes, search]);
+  // Keep counter in sync with currentIndex
+  useEffect(() => {
+    setCounterValue(String(currentIndex + 1));
+  }, [currentIndex]);
 
-  if (loading) {
+  const importedCount = useMemo(() => {
+    return noteHeaders.filter((n) => importedIds.has(n.id)).length;
+  }, [noteHeaders, importedIds]);
+
+  if (notesLoading) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-4">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading notes...</p>
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading notes...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-4">
-        <p className="text-sm text-destructive text-center">{error}</p>
-        <Button variant="outline" size="sm" onClick={onBack}>
-          Back to Folders
-        </Button>
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={onBack}>
+            Back to Folders
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (notes.length === 0) {
+  if (total === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 pb-4">
-        <p className="text-sm text-muted-foreground">
-          No notes in this folder.
-        </p>
-        <Button variant="outline" size="sm" onClick={onBack}>
-          Back to Folders
-        </Button>
+      <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            No notes in this folder.
+          </p>
+          <Button variant="outline" size="sm" onClick={onBack}>
+            Back to Folders
+          </Button>
+        </div>
       </div>
     );
+  }
+
+  function handleCounterSubmit() {
+    const n = parseInt(counterValue, 10);
+    if (!isNaN(n) && n >= 1 && n <= total) {
+      onJumpTo(n - 1);
+    } else {
+      setCounterValue(String(currentIndex + 1));
+    }
+    counterRef.current?.blur();
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-3 px-4 pb-4 overflow-hidden">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-1 flex-col min-h-0">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
         <button
           onClick={onBack}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-3.5" />
+          <span className="hidden sm:inline">{selectedFolder}</span>
         </button>
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search notes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 text-sm"
+
+        {/* Counter */}
+        <div className="flex items-center gap-1.5 text-sm tabular-nums">
+          <input
+            ref={counterRef}
+            type="text"
+            inputMode="numeric"
+            value={counterValue}
+            onChange={(e) => setCounterValue(e.target.value)}
+            onBlur={handleCounterSubmit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCounterSubmit();
+            }}
+            className="w-8 text-center bg-transparent border-b border-transparent hover:border-border focus:border-foreground outline-none text-foreground font-medium transition-colors"
           />
+          <span className="text-muted-foreground">/</span>
+          <span className="text-muted-foreground">{total}</span>
+          {importedCount > 0 && (
+            <span className="ml-2 text-xs text-emerald-500">
+              {importedCount} imported
+            </span>
+          )}
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          className="text-muted-foreground"
+        >
+          <span className="sr-only">Close</span>
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <path
+              d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+              fill="currentColor"
+              fillRule="evenodd"
+              clipRule="evenodd"
+            />
+          </svg>
+        </Button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <div className="space-y-1">
-          {filtered.map((note) => {
-            const isExpanded = expandedNoteId === note.id;
-            const isImported = importedIds.has(note.id);
+      {/* Main area with nav arrows */}
+      <div className="flex flex-1 min-h-0 items-stretch">
+        {/* Left arrow */}
+        <button
+          onClick={onPrev}
+          disabled={currentIndex === 0}
+          className="shrink-0 w-12 sm:w-16 flex items-center justify-center text-muted-foreground/40 hover:text-foreground disabled:opacity-0 transition-all hover:bg-accent/50"
+        >
+          <ChevronLeft className="size-6" />
+        </button>
 
-            return (
-              <div key={note.id}>
-                <button
-                  className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
-                    isExpanded ? "bg-accent" : "hover:bg-accent"
-                  }`}
-                  onClick={() => onExpandNote(note.id)}
-                  disabled={acting && isExpanded}
-                >
-                  <ChevronRight
-                    className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <span className="truncate text-sm font-medium block">
-                      {note.title}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(note.modifiedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {isImported && (
-                    <Badge
-                      variant="secondary"
-                      className="shrink-0 text-[10px] gap-1"
-                    >
-                      <Check className="size-3" />
-                      Imported
-                    </Badge>
-                  )}
-                </button>
+        {/* Note card */}
+        <div className="flex-1 min-w-0 flex items-center justify-center py-6 px-2">
+          <div className="w-full max-w-2xl h-full flex flex-col relative">
+            {/* Imported badge */}
+            {isCurrentImported && (
+              <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1">
+                <Check className="size-3 text-emerald-500" />
+                <span className="text-[11px] font-medium text-emerald-500">
+                  Imported
+                </span>
+              </div>
+            )}
 
-                {isExpanded && (
-                  <div className="ml-6 mr-1 mb-2 mt-1 rounded-md border bg-card p-3 space-y-3 overflow-hidden">
-                    {contentLoading ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : expandedContent ? (
-                      <>
-                        <p className="text-sm text-muted-foreground line-clamp-6 whitespace-pre-wrap break-words">
-                          {expandedContent.body}
-                        </p>
+            {isCurrentLoading ? (
+              <div className="flex flex-1 items-center justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : currentContent ? (
+              <>
+                {/* Title */}
+                <h2 className="text-xl sm:text-2xl font-semibold leading-tight pr-28 mb-3 shrink-0">
+                  {currentContent.title}
+                </h2>
 
-                        {(expandedContent.images.length > 0 ||
-                          expandedContent.audio.length > 0) && (
-                          <div className="flex flex-wrap gap-2">
-                            {expandedContent.images.length > 0 && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Image className="size-3.5" />
-                                <span>
-                                  {expandedContent.images.length} image
-                                  {expandedContent.images.length !== 1
-                                    ? "s"
-                                    : ""}
-                                </span>
-                              </div>
-                            )}
-                            {expandedContent.audio.length > 0 && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Mic className="size-3.5" />
-                                <span>
-                                  {expandedContent.audio.length} audio note
-                                  {expandedContent.audio.length !== 1
-                                    ? "s"
-                                    : ""}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Title
-                          </label>
-                          <Input
-                            value={editTitle}
-                            onChange={(e) => onEditTitleChange(e.target.value)}
-                            placeholder="Song title"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Save as
-                          </label>
-                          <div className="flex gap-1">
-                            <Button
-                              variant={
-                                target === "notes" ? "default" : "outline"
-                              }
-                              size="sm"
-                              onClick={() => onTargetChange("notes")}
-                            >
-                              <StickyNote className="size-3.5" />
-                              Notes
-                            </Button>
-                            <Button
-                              variant={
-                                target === "lyrics" ? "default" : "outline"
-                              }
-                              size="sm"
-                              onClick={() => onTargetChange("lyrics")}
-                            >
-                              <FileText className="size-3.5" />
-                              Lyrics
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            onClick={onCreateSong}
-                            disabled={acting || !editTitle.trim()}
-                          >
-                            {acting ? (
-                              <>
-                                <Loader2 className="size-3.5 animate-spin" />
-                                {actingLabel || "Importing..."}
-                              </>
-                            ) : (
-                              "Create Song"
-                            )}
-                          </Button>
-                          <AddToSongPopover
-                            songs={songs}
-                            disabled={acting}
-                            onSelect={onAddToSong}
-                          />
-                        </div>
-                      </>
-                    ) : null}
+                {/* Attachment badges */}
+                {(currentContent.images.length > 0 ||
+                  currentContent.audio.length > 0) && (
+                  <div className="flex items-center gap-2 mb-4 shrink-0">
+                    {currentContent.images.length > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="gap-1.5 text-xs font-normal"
+                      >
+                        <Image className="size-3" />
+                        {currentContent.images.length} image
+                        {currentContent.images.length !== 1 ? "s" : ""}
+                      </Badge>
+                    )}
+                    {currentContent.audio.length > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="gap-1.5 text-xs font-normal"
+                      >
+                        <Mic className="size-3" />
+                        {currentContent.audio.length} audio
+                      </Badge>
+                    )}
                   </div>
                 )}
+
+                {/* Body */}
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="pr-4">
+                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap break-words">
+                      {currentContent.body || (
+                        <span className="italic">No text content</span>
+                      )}
+                    </p>
+                  </div>
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-sm text-muted-foreground">
+                  {currentNote?.title ?? "No note selected"}
+                </p>
               </div>
-            );
-          })}
+            )}
+          </div>
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={onNext}
+          disabled={currentIndex >= total - 1}
+          className="shrink-0 w-12 sm:w-16 flex items-center justify-center text-muted-foreground/40 hover:text-foreground disabled:opacity-0 transition-all hover:bg-accent/50"
+        >
+          <ChevronRight className="size-6" />
+        </button>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-t shrink-0 bg-muted/30">
+        {/* Keyboard hints */}
+        <div className="hidden sm:flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <kbd className="inline-flex items-center justify-center rounded border bg-muted px-1 py-0.5 font-mono text-[10px] min-w-[20px]">
+              &larr;
+            </kbd>
+            <kbd className="inline-flex items-center justify-center rounded border bg-muted px-1 py-0.5 font-mono text-[10px] min-w-[20px]">
+              &rarr;
+            </kbd>
+            <span className="ml-0.5">navigate</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="inline-flex items-center justify-center rounded border bg-muted px-1 py-0.5 font-mono text-[10px] min-w-[20px]">
+              &uarr;
+            </kbd>
+            <span className="ml-0.5">new</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="inline-flex items-center justify-center rounded border bg-muted px-1 py-0.5 font-mono text-[10px] min-w-[20px]">
+              &darr;
+            </kbd>
+            <span className="ml-0.5">existing</span>
+          </span>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 ml-auto">
+          {acting ? (
+            <Button size="sm" disabled>
+              <Loader2 className="size-3.5 animate-spin" />
+              {actingLabel || "Importing..."}
+            </Button>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                onClick={onCreateSong}
+                disabled={!currentContent || acting}
+              >
+                <Plus className="size-3.5" />
+                Create New
+              </Button>
+
+              <SongPickerPopover
+                songs={songs}
+                disabled={!currentContent || acting}
+                open={songPickerOpen}
+                onOpenChange={onSongPickerOpenChange}
+                onSelect={onAddToSong}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function AddToSongPopover({
+// ---------------------------------------------------------------------------
+// SongPickerPopover
+// ---------------------------------------------------------------------------
+
+function SongPickerPopover({
   songs,
   disabled,
+  open,
+  onOpenChange,
   onSelect,
 }: {
   songs: Song[];
   disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSelect: (songId: Id<"songs">) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -758,13 +1003,14 @@ function AddToSongPopover({
   }, [songs, search]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
-          Add to Song
+          <ListPlus className="size-3.5" />
+          Add to Existing
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-72 p-0" align="end" side="top">
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
@@ -773,6 +1019,7 @@ function AddToSongPopover({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-sm"
+              autoFocus
             />
           </div>
         </div>
@@ -788,7 +1035,6 @@ function AddToSongPopover({
                   key={song._id}
                   className="flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent text-left"
                   onClick={() => {
-                    setOpen(false);
                     setSearch("");
                     onSelect(song._id);
                   }}

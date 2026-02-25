@@ -19,6 +19,22 @@ export const STAGE_BADGE_CLASSES: Record<string, string> = {
   done: "border-stage-done/25 bg-stage-done/10 text-stage-done",
 };
 
+export const STAGE_DOT_CLASSES: Record<string, string> = {
+  idea: "bg-stage-idea",
+  writing: "bg-stage-writing",
+  producing: "bg-stage-producing",
+  mixing: "bg-stage-mixing",
+  done: "bg-stage-done",
+};
+
+export const STAGE_TEXT_CLASSES: Record<string, string> = {
+  idea: "text-stage-idea",
+  writing: "text-stage-writing",
+  producing: "text-stage-producing",
+  mixing: "text-stage-mixing",
+  done: "text-stage-done",
+};
+
 export const STAGE_COLUMN_CLASSES: Record<Stage, string> = {
   idea: "bg-stage-idea-muted",
   writing: "bg-stage-writing-muted",

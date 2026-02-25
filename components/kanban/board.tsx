@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import {
   DndContext,
@@ -13,7 +13,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { Import, Info, Plus } from "lucide-react";
+import { Import, Info, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,9 @@ import { KanbanCard } from "./card";
 import { TagFilterBar } from "./tag-filter-bar";
 import { WorkspaceSettings } from "@/components/workspace/settings";
 import { ImportSheet } from "@/components/import/import-sheet";
-import { STAGES, type Stage } from "@/lib/kanban/types";
+import { useCommandPalette } from "@/components/command-palette";
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
+import { STAGES, STAGE_LABELS, type Stage } from "@/lib/kanban/types";
 import { calculateInsertPosition } from "@/lib/kanban/position";
 import { usePendingMoves } from "@/lib/kanban/use-pending-moves";
 
@@ -77,6 +80,7 @@ export function KanbanBoard({
   workspaceName: string;
   workspaceSlug: string;
 }) {
+  const { setOpen: setCommandOpen } = useCommandPalette();
   const songs = useQuery(api.songs.listByWorkspace, { workspaceId });
   const tags = useQuery(api.tags.list, { workspaceId });
   const groups = useQuery(api.songGroups.list, { workspaceId });
@@ -91,6 +95,7 @@ export function KanbanBoard({
   const [creating, setCreating] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [activeTagIds, setActiveTagIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -114,6 +119,17 @@ export function KanbanBoard({
     isGroupMoveResolved
   );
 
+  // Build group name lookup
+  const groupMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (groups) {
+      for (const g of groups) {
+        map.set(g._id, g.name);
+      }
+    }
+    return map;
+  }, [groups]);
+
   const toggleShowIdeas = useCallback(() => {
     setShowIdeas((prev) => {
       const next = !prev;
@@ -131,20 +147,28 @@ export function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const filteredSongs = useMemo(() => {
+  // Enrich songs with groupName from groups query
+  const enrichedSongs = useMemo(() => {
     if (!songs) return [];
-    if (activeTagIds.size === 0) return songs;
-    return songs.filter((song) => {
+    return songs.map((song) => ({
+      ...song,
+      groupName: song.groupId ? groupMap.get(song.groupId) : undefined,
+    }));
+  }, [songs, groupMap]);
+
+  const filteredSongs = useMemo(() => {
+    if (activeTagIds.size === 0) return enrichedSongs;
+    return enrichedSongs.filter((song) => {
       const songTagSet = new Set((song.tagIds ?? []) as string[]);
       for (const tagId of activeTagIds) {
         if (songTagSet.has(tagId)) return true;
       }
       return false;
     });
-  }, [songs, activeTagIds]);
+  }, [enrichedSongs, activeTagIds]);
 
   const songsByStage = useMemo(() => {
-    const grouped: Record<Stage, NonNullable<typeof songs>> = {
+    const grouped: Record<Stage, typeof filteredSongs> = {
       idea: [],
       writing: [],
       producing: [],
@@ -169,7 +193,7 @@ export function KanbanBoard({
   }, [filteredSongs, pendingMoves]);
 
   const songsByGroup = useMemo(() => {
-    const grouped: Record<string, NonNullable<typeof songs>> = {
+    const grouped: Record<string, typeof filteredSongs> = {
       [UNGROUPED_ID]: [],
     };
 
@@ -191,7 +215,7 @@ export function KanbanBoard({
       grouped[effectiveGroupId].push({
         ...song,
         groupPosition: effectiveGroupPosition,
-      } as typeof song);
+      });
     }
 
     for (const key of Object.keys(grouped)) {
@@ -202,8 +226,8 @@ export function KanbanBoard({
   }, [filteredSongs, groups, pendingGroupMoves]);
 
   const activeSong = useMemo(
-    () => songs?.find((s) => s._id === activeId) ?? null,
-    [songs, activeId]
+    () => enrichedSongs.find((s) => s._id === activeId) ?? null,
+    [enrichedSongs, activeId]
   );
 
   // All group column IDs for identifying drop targets
@@ -251,6 +275,9 @@ export function KanbanBoard({
         : stageSongs.findIndex((s) => s._id === overId);
       const newPosition = calculateInsertPosition(positions, overIndex);
 
+      const prevStage = currentSong.stage as Stage;
+      const prevPosition = currentSong.position;
+
       if (
         currentSong.stage !== targetStage ||
         currentSong.position !== newPosition
@@ -262,6 +289,26 @@ export function KanbanBoard({
           stage: targetStage,
           position: newPosition,
         });
+
+        // Undo toast
+        if (prevStage !== targetStage) {
+          toast(
+            `Moved "${currentSong.title}" to ${STAGE_LABELS[targetStage]}`,
+            {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void moveSong({
+                    id: songId as Id<"songs">,
+                    stage: prevStage,
+                    position: prevPosition,
+                  });
+                },
+              },
+              duration: 5000,
+            }
+          );
+        }
       }
     } else {
       let targetGroupId: string;
@@ -287,9 +334,11 @@ export function KanbanBoard({
       const newPosition = calculateInsertPosition(positions, overIndex);
 
       const currentGroupId = currentSong.groupId ?? UNGROUPED_ID;
+      const prevGroupPosition = currentSong.groupPosition ?? 0;
+
       if (
         currentGroupId !== targetGroupId ||
-        (currentSong.groupPosition ?? 0) !== newPosition
+        prevGroupPosition !== newPosition
       ) {
         addPendingGroupMove(songId, {
           toGroupId: targetGroupId,
@@ -301,6 +350,29 @@ export function KanbanBoard({
           groupId: targetGroupId === UNGROUPED_ID ? undefined : targetGroupId as Id<"songGroups">,
           groupPosition: newPosition,
         });
+
+        // Undo toast
+        if (currentGroupId !== targetGroupId) {
+          const targetName = targetGroupId === UNGROUPED_ID
+            ? "Ungrouped"
+            : groupMap.get(targetGroupId) ?? "group";
+          toast(
+            `Moved "${currentSong.title}" to ${targetName}`,
+            {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void moveToGroup({
+                    id: songId as Id<"songs">,
+                    groupId: currentGroupId === UNGROUPED_ID ? undefined : currentGroupId as Id<"songGroups">,
+                    groupPosition: prevGroupPosition,
+                  });
+                },
+              },
+              duration: 5000,
+            }
+          );
+        }
       }
     }
   }
@@ -343,17 +415,90 @@ export function KanbanBoard({
     setAddingGroup(false);
   }
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Skip if in an input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) {
+        return;
+      }
+
+      // N: new song dialog
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setDialogOpen(true);
+        return;
+      }
+
+      // S: switch to stages view
+      if (e.key === "s" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        handleSetViewMode("stages");
+        return;
+      }
+
+      // G: switch to groups view
+      if (e.key === "g" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        handleSetViewMode("groups");
+        return;
+      }
+
+      // I: toggle ideas
+      if (e.key === "i" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        toggleShowIdeas();
+        return;
+      }
+
+      // ?: show shortcuts
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+    }
+
+    function handleShowShortcuts() {
+      setShortcutsOpen(true);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("artistry:show-shortcuts", handleShowShortcuts);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("artistry:show-shortcuts", handleShowShortcuts);
+    };
+  }, [handleSetViewMode, toggleShowIdeas]);
+
   return (
     <div className="flex h-screen flex-col">
       <header className="border-b px-6 py-4">
         <div className="flex items-start justify-between mb-1 gap-4">
-          <h1
-            className="text-6xl tracking-tight"
-            style={{ fontFamily: '"Dreaming Outloud", cursive' }}
+          <Link
+            href="/workspaces"
+            className="group/title"
           >
-            {workspaceName}
-          </h1>
+            <h1
+              className="text-6xl tracking-tight group-hover/title:opacity-80 transition-opacity cursor-pointer"
+              style={{ fontFamily: '"Dreaming Outloud", cursive' }}
+            >
+              {workspaceName}
+            </h1>
+          </Link>
         <div className="flex items-center gap-2 shrink-0 mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCommandOpen(true)}
+          >
+            <Search className="size-3.5" />
+            Search
+            <kbd className="ml-1.5 pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -409,20 +554,29 @@ export function KanbanBoard({
         </div>
 
         <div className="flex items-center justify-between mt-1">
-          <Link
-            href="/workspaces"
-            className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-          >
-            &larr; Workspaces
-          </Link>
-
           <div className="flex items-center gap-3">
-            <TagFilterBar
-              tags={tags ?? []}
-              activeTagIds={activeTagIds}
-              onToggle={toggleTagFilter}
-              onClear={clearTagFilters}
-            />
+            <div className="flex items-center rounded-md bg-muted p-0.5">
+              <button
+                onClick={() => handleSetViewMode("stages")}
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  viewMode === "stages"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Stages
+              </button>
+              <button
+                onClick={() => handleSetViewMode("groups")}
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  viewMode === "groups"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Groups
+              </button>
+            </div>
 
             {viewMode === "stages" && (
               <button
@@ -459,30 +613,14 @@ export function KanbanBoard({
                 </span>
               </button>
             )}
-
-            <div className="flex items-center rounded-md bg-muted p-0.5">
-              <button
-                onClick={() => handleSetViewMode("stages")}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  viewMode === "stages"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Stages
-              </button>
-              <button
-                onClick={() => handleSetViewMode("groups")}
-                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                  viewMode === "groups"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Groups
-              </button>
-            </div>
           </div>
+
+          <TagFilterBar
+            tags={tags ?? []}
+            activeTagIds={activeTagIds}
+            onToggle={toggleTagFilter}
+            onClear={clearTagFilters}
+          />
         </div>
       </header>
 
@@ -502,6 +640,7 @@ export function KanbanBoard({
                   songs={songsByStage[stage]}
                   workspaceId={workspaceId}
                   workspaceSlug={workspaceSlug}
+                  viewMode={viewMode}
                 />
               ))}
             </>
@@ -513,6 +652,7 @@ export function KanbanBoard({
                 songs={songsByGroup[UNGROUPED_ID] ?? []}
                 workspaceId={workspaceId}
                 workspaceSlug={workspaceSlug}
+                viewMode={viewMode}
               />
               {(groups ?? []).map((group, index) => (
                 <KanbanColumn
@@ -521,6 +661,7 @@ export function KanbanBoard({
                   songs={songsByGroup[group._id] ?? []}
                   workspaceId={workspaceId}
                   workspaceSlug={workspaceSlug}
+                  viewMode={viewMode}
                 />
               ))}
               {addingGroup ? (
@@ -553,7 +694,7 @@ export function KanbanBoard({
           )}
           <DragOverlay>
             {activeSong ? (
-              <KanbanCard song={activeSong} workspaceSlug={workspaceSlug} overlay />
+              <KanbanCard song={activeSong} workspaceSlug={workspaceSlug} viewMode={viewMode} overlay />
             ) : null}
           </DragOverlay>
         </DndContext>
@@ -571,6 +712,11 @@ export function KanbanBoard({
         onOpenChange={setImportOpen}
         workspaceId={workspaceId}
         songs={songs ?? []}
+      />
+
+      <KeyboardShortcutsDialog
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
       />
     </div>
   );
