@@ -93,6 +93,62 @@ export const create = mutation({
   },
 });
 
+export const createWithLyricsSnapshot = mutation({
+  args: {
+    songId: v.id("songs"),
+    title: v.string(),
+    audioUrl: v.string(),
+    notes: v.optional(v.string()),
+    category: v.optional(
+      v.union(
+        v.literal("demo"),
+        v.literal("rough"),
+        v.literal("mix"),
+        v.literal("final")
+      )
+    ),
+    duration: v.optional(v.number()),
+    lyricsContent: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const song = await ctx.db.get(args.songId);
+    if (!song) throw new Error("Song not found");
+
+    const membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace_and_user", (q) =>
+        q.eq("workspaceId", song.workspaceId).eq("userId", userId)
+      )
+      .unique();
+
+    if (!membership) throw new Error("Not a member of this workspace");
+
+    let snapshotId;
+    if (args.lyricsContent && args.lyricsContent.trim()) {
+      snapshotId = await ctx.db.insert("lyricsSnapshots", {
+        songId: args.songId,
+        content: args.lyricsContent,
+        createdBy: userId,
+        label: `Version: ${args.title}`,
+      });
+    }
+
+    return await ctx.db.insert("songVersions", {
+      songId: args.songId,
+      title: args.title,
+      audioUrl: args.audioUrl,
+      createdBy: userId,
+      notes: args.notes,
+      category: args.category,
+      duration: args.duration,
+      lyricsSnapshotId: snapshotId,
+    });
+  },
+});
+
 export const update = mutation({
   args: {
     id: v.id("songVersions"),

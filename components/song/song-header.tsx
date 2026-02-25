@@ -74,8 +74,8 @@ export function SongHeader({
     [moveSong, song._id, song.position]
   );
 
-  // Format "edited X ago"
-  const editedAt = lyrics?._creationTime;
+  // Format "edited X ago" — use updatedAt if available, fall back to creation time
+  const editedAt = lyrics?.updatedAt ?? lyrics?._creationTime;
   const editedAgo = editedAt ? formatTimeAgo(editedAt) : null;
 
   return (

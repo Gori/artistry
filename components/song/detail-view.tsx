@@ -247,7 +247,7 @@ export function SongDetailView({
           )}
           {activeSection === "versions" && (
             <div className="flex-1 overflow-auto p-6">
-              <VersionsPanel songId={song._id} onPlay={handlePlay} />
+              <VersionsPanel songId={song._id} onPlay={handlePlay} lyricsContent={lyrics?.content} />
             </div>
           )}
           {activeSection === "audio-notes" && (
@@ -261,6 +261,7 @@ export function SongDetailView({
       {/* Persistent audio player */}
       {activeAudio && (
         <PersistentPlayer
+          key={activeAudio.src}
           audio={activeAudio}
           onClose={() => setActiveAudio(null)}
         />

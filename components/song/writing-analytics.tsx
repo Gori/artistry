@@ -54,16 +54,14 @@ function HorizontalBar({
 
 export function WritingAnalytics({
   content,
-  tempo,
 }: {
   content: string;
-  tempo?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
 
   const analytics = useMemo(
-    () => analyzeLyrics(content, tempo),
-    [content, tempo]
+    () => analyzeLyrics(content),
+    [content]
   );
 
   if (!content.trim()) return null;
@@ -103,12 +101,7 @@ export function WritingAnalytics({
             <StatItem label="Unique Words" value={analytics.uniqueWords} />
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
-            <StatItem
-              label="Vocabulary"
-              value={`${Math.round(analytics.vocabularyRichness * 100)}%`}
-              sub="unique/total"
-            />
+          <div className="grid grid-cols-2 gap-3">
             <StatItem
               label="Avg Syllables/Line"
               value={analytics.avgSyllablesPerLine}
@@ -117,11 +110,6 @@ export function WritingAnalytics({
             <StatItem
               label="Rhyme Density"
               value={`${analytics.rhymeDensity}%`}
-            />
-            <StatItem
-              label="Est. Duration"
-              value={analytics.estimatedDuration}
-              sub={tempo ? `${tempo} BPM` : "~120 BPM"}
             />
           </div>
 
@@ -162,10 +150,6 @@ export function WritingAnalytics({
             </div>
           )}
 
-          {/* Reading level */}
-          <div className="text-[10px] text-muted-foreground">
-            Flesch-Kincaid reading level: {analytics.readingLevel}
-          </div>
         </div>
       )}
     </div>

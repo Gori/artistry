@@ -16,6 +16,7 @@ import { WritingAnalytics } from "./writing-analytics";
 import { createRhymeKeybinding } from "@/lib/codemirror/rhyme-popup";
 import { findRhymes, type RhymeResult } from "@/lib/rhyme";
 import { Button } from "@/components/ui/button";
+import { MicRecorder } from "@/components/audio/mic-recorder";
 
 export function LyricsEditor({
   songId,
@@ -278,6 +279,7 @@ export function LyricsEditor({
           <LayoutList className="size-3.5" />
         </Button>
         <div className="flex-1" />
+        <MicRecorder songId={songId} />
         <Button
           variant="ghost"
           size="icon-xs"
@@ -325,7 +327,7 @@ The chorus goes here`}
           />
 
           {/* Writing analytics */}
-          <WritingAnalytics content={content} tempo={undefined} />
+          <WritingAnalytics content={content} />
         </div>
       </div>
 

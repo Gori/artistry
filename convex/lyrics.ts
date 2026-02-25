@@ -60,6 +60,7 @@ export const append = mutation({
       await ctx.db.patch(existing._id, {
         content: newContent,
         updatedBy: userId,
+        updatedAt: Date.now(),
       });
       return existing._id;
     } else {
@@ -67,6 +68,7 @@ export const append = mutation({
         songId: args.songId,
         content: args.content,
         updatedBy: userId,
+        updatedAt: Date.now(),
       });
     }
   },
@@ -126,6 +128,7 @@ export const save = mutation({
       await ctx.db.patch(existing._id, {
         content: args.content,
         updatedBy: userId,
+        updatedAt: Date.now(),
       });
       return existing._id;
     } else {
@@ -133,6 +136,7 @@ export const save = mutation({
         songId: args.songId,
         content: args.content,
         updatedBy: userId,
+        updatedAt: Date.now(),
       });
     }
   },

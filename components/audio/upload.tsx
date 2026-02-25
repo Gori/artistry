@@ -44,6 +44,7 @@ export function AudioUpload({
   defaultCategory,
   preselectedFile,
   onComplete,
+  lyricsContent,
 }: {
   songId: Id<"songs">;
   type: "version" | "audioNote";
@@ -52,8 +53,9 @@ export function AudioUpload({
   defaultCategory?: VersionCategory;
   preselectedFile?: File;
   onComplete?: () => void;
+  lyricsContent?: string;
 }) {
-  const createVersion = useMutation(api.songVersions.create);
+  const createVersionWithSnapshot = useMutation(api.songVersions.createWithLyricsSnapshot);
   const createAudioNote = useMutation(api.audioNotes.create);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,13 +113,14 @@ export function AudioUpload({
 
       // Create record
       if (type === "version") {
-        await createVersion({
+        await createVersionWithSnapshot({
           songId,
           title: title.trim(),
           audioUrl: url,
           notes: notes.trim() || undefined,
           category: category || undefined,
           duration,
+          lyricsContent: lyricsContent || undefined,
         });
       } else {
         await createAudioNote({

@@ -24,7 +24,7 @@ export function PersistentPlayer({
           {audio.title}
         </span>
         <div className="flex-1 min-w-0">
-          <AudioPlayer src={audio.src} />
+          <AudioPlayer src={audio.src} autoPlay />
         </div>
         <Button
           variant="ghost"

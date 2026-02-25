@@ -1,4 +1,5 @@
 import { parseSections } from "./parse-sections";
+import { isPhoneticRhyme } from "./rhyme-check";
 
 const STOP_WORDS = new Set([
   "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours",
@@ -77,18 +78,15 @@ export interface LyricsAnalytics {
   totalLines: number;
   totalSections: number;
   uniqueWords: number;
-  vocabularyRichness: number;
   topWords: WordFrequency[];
   sections: SectionStats[];
   avgSyllablesPerLine: number;
   syllableRange: [number, number];
   rhymeDensity: number;
-  estimatedDuration: string;
-  readingLevel: number;
 }
 
 /** Compute analytics for lyrics content */
-export function analyzeLyrics(content: string, tempo?: string): LyricsAnalytics {
+export function analyzeLyrics(content: string): LyricsAnalytics {
   const sections = parseSections(content);
   const lines = content.split("\n");
   const SECTION_RE = /^\[([^\]]+)\]\s*$/;
@@ -135,42 +133,23 @@ export function analyzeLyrics(content: string, tempo?: string): LyricsAnalytics 
     })
     .filter(Boolean);
 
-  let rhymingLines = 0;
+  // Mark both lines in each rhyming pair
+  const rhymed = new Array(endWords.length).fill(false);
   for (let i = 0; i < endWords.length; i++) {
     for (let j = i + 1; j < endWords.length; j++) {
-      if (endWords[i] === endWords[j]) continue;
-      if (simpleRhymeCheck(endWords[i], endWords[j])) {
-        rhymingLines++;
-        break;
+      if (isPhoneticRhyme(endWords[i], endWords[j])) {
+        rhymed[i] = true;
+        rhymed[j] = true;
       }
     }
   }
-
-  // Estimated duration
-  const bpm = tempo ? parseInt(tempo) : 120;
-  const wordsPerMinute = bpm * 0.6; // rough: ~0.6 words per beat
-  const durationMin = allWords.length / wordsPerMinute;
-  const mins = Math.floor(durationMin);
-  const secs = Math.round((durationMin - mins) * 60);
-  const estimatedDuration = `${mins}:${secs.toString().padStart(2, "0")}`;
-
-  // Flesch-Kincaid approximation
-  const totalSyllables = allWords.reduce((s, w) => s + countSyllables(w), 0);
-  const sentences = contentLines.length;
-  const readingLevel =
-    sentences > 0 && allWords.length > 0
-      ? 0.39 * (allWords.length / sentences) +
-        11.8 * (totalSyllables / allWords.length) -
-        15.59
-      : 0;
+  const rhymingLines = rhymed.filter(Boolean).length;
 
   return {
     totalWords: allWords.length,
     totalLines: contentLines.length,
     totalSections: sections.length,
     uniqueWords: wordSet.size,
-    vocabularyRichness:
-      allWords.length > 0 ? wordSet.size / allWords.length : 0,
     topWords,
     sections: sections.map((s) => ({
       name: s.name,
@@ -181,17 +160,5 @@ export function analyzeLyrics(content: string, tempo?: string): LyricsAnalytics 
     syllableRange: [minSyl, maxSyl],
     rhymeDensity:
       endWords.length > 0 ? Math.round((rhymingLines / endWords.length) * 100) : 0,
-    estimatedDuration,
-    readingLevel: Math.round(Math.max(0, readingLevel) * 10) / 10,
   };
-}
-
-/** Simple rhyme check: compare last 2-3 characters */
-function simpleRhymeCheck(a: string, b: string): boolean {
-  if (a.length < 2 || b.length < 2) return false;
-  const endA = a.slice(-3);
-  const endB = b.slice(-3);
-  if (endA === endB) return true;
-  if (a.slice(-2) === b.slice(-2)) return true;
-  return false;
 }

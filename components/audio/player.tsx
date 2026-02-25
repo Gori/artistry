@@ -27,12 +27,14 @@ export function AudioPlayer({
   size = "compact",
   markers,
   onMarkerAdd,
+  autoPlay,
 }: {
   src: string;
   className?: string;
   size?: "compact" | "large";
   markers?: AudioMarker[];
   onMarkerAdd?: (timestamp: number) => void;
+  autoPlay?: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,6 +72,10 @@ export function AudioPlayer({
     const onMeta = () => {
       setDuration(audio.duration);
       setLoading(false);
+      if (autoPlay) {
+        void audio.play();
+        setPlaying(true);
+      }
     };
     const onEnd = () => {
       setPlaying(false);

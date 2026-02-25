@@ -54,6 +54,7 @@ const schema = defineSchema({
     songId: v.id("songs"),
     content: v.string(),
     updatedBy: v.id("users"),
+    updatedAt: v.optional(v.number()),
   }).index("by_song", ["songId"]),
   notes: defineTable({
     songId: v.id("songs"),
@@ -78,6 +79,7 @@ const schema = defineSchema({
     ),
     isCurrent: v.optional(v.boolean()),
     duration: v.optional(v.number()),
+    lyricsSnapshotId: v.optional(v.id("lyricsSnapshots")),
   }).index("by_song", ["songId"]),
   audioNotes: defineTable({
     songId: v.id("songs"),

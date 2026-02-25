@@ -12,6 +12,7 @@ import {
   Upload,
   Filter,
   GitCompare,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -60,14 +61,17 @@ type Version = {
   duration?: number;
   creatorName: string;
   createdBy: Id<"users">;
+  lyricsSnapshotId?: Id<"lyricsSnapshots">;
 };
 
 export function VersionsPanel({
   songId,
   onPlay,
+  lyricsContent,
 }: {
   songId: Id<"songs">;
   onPlay?: (audio: ActiveAudio) => void;
+  lyricsContent?: string;
 }) {
   const versions = useQuery(api.songVersions.listBySong, { songId });
   const updateVersion = useMutation(api.songVersions.update);
@@ -87,6 +91,9 @@ export function VersionsPanel({
   // Compare mode
   const [compareMode, setCompareMode] = useState(false);
   const [compareSelection, setCompareSelection] = useState<Id<"songVersions">[]>([]);
+
+  // Lyrics snapshot viewer
+  const [viewingSnapshotId, setViewingSnapshotId] = useState<Id<"lyricsSnapshots"> | null>(null);
 
   // Drag & drop
   const [dragOver, setDragOver] = useState(false);
@@ -256,6 +263,7 @@ export function VersionsPanel({
             type="version"
             uploading={uploading}
             onUploadingChange={setUploading}
+            lyricsContent={lyricsContent}
           />
         </div>
       </div>
@@ -296,6 +304,7 @@ export function VersionsPanel({
               onEdit={handleEdit}
               onDelete={setDeletingVersion}
               onSetCurrent={handleSetCurrent}
+              onViewSnapshot={setViewingSnapshotId}
             />
           )}
 
@@ -309,6 +318,7 @@ export function VersionsPanel({
                 onEdit={handleEdit}
                 onDelete={setDeletingVersion}
                 onSetCurrent={handleSetCurrent}
+                onViewSnapshot={setViewingSnapshotId}
                 compareMode={compareMode}
                 compareSelected={compareSelection.includes(version._id)}
                 onCompareToggle={handleCompareToggle}
@@ -353,6 +363,7 @@ export function VersionsPanel({
           onUploadingChange={setUploading}
           preselectedFile={droppedFile}
           onComplete={() => setDroppedFile(null)}
+          lyricsContent={lyricsContent}
         />
       )}
 
@@ -448,6 +459,14 @@ export function VersionsPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Lyrics snapshot viewer */}
+      {viewingSnapshotId && (
+        <LyricsSnapshotViewer
+          snapshotId={viewingSnapshotId}
+          onClose={() => setViewingSnapshotId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -461,6 +480,7 @@ function CurrentVersionCard({
   onEdit,
   onDelete,
   onSetCurrent,
+  onViewSnapshot,
 }: {
   version: Version;
   songId: Id<"songs">;
@@ -468,6 +488,7 @@ function CurrentVersionCard({
   onEdit: (version: Version) => void;
   onDelete: (version: Version) => void;
   onSetCurrent: (id: Id<"songVersions">) => void;
+  onViewSnapshot: (id: Id<"lyricsSnapshots">) => void;
 }) {
   const markers = useQuery(api.versionMarkers.listByVersion, {
     versionId: version._id,
@@ -515,6 +536,7 @@ function CurrentVersionCard({
           onEdit={onEdit}
           onDelete={onDelete}
           onSetCurrent={onSetCurrent}
+          onViewSnapshot={onViewSnapshot}
         />
       </div>
 
@@ -588,6 +610,7 @@ function CompactVersionRow({
   onEdit,
   onDelete,
   onSetCurrent,
+  onViewSnapshot,
   compareMode,
   compareSelected,
   onCompareToggle,
@@ -597,6 +620,7 @@ function CompactVersionRow({
   onEdit: (version: Version) => void;
   onDelete: (version: Version) => void;
   onSetCurrent: (id: Id<"songVersions">) => void;
+  onViewSnapshot: (id: Id<"lyricsSnapshots">) => void;
   compareMode: boolean;
   compareSelected: boolean;
   onCompareToggle: (id: Id<"songVersions">) => void;
@@ -674,6 +698,7 @@ function CompactVersionRow({
           onEdit={onEdit}
           onDelete={onDelete}
           onSetCurrent={onSetCurrent}
+          onViewSnapshot={onViewSnapshot}
         />
       )}
     </div>
@@ -702,12 +727,14 @@ function VersionMenu({
   onEdit,
   onDelete,
   onSetCurrent,
+  onViewSnapshot,
 }: {
   version: Version;
   onPlay?: (audio: ActiveAudio) => void;
   onEdit: (version: Version) => void;
   onDelete: (version: Version) => void;
   onSetCurrent: (id: Id<"songVersions">) => void;
+  onViewSnapshot: (id: Id<"lyricsSnapshots">) => void;
 }) {
   return (
     <DropdownMenu>
@@ -735,6 +762,12 @@ function VersionMenu({
           <Pencil className="size-3.5 mr-2" />
           Edit
         </DropdownMenuItem>
+        {version.lyricsSnapshotId && (
+          <DropdownMenuItem onClick={() => onViewSnapshot(version.lyricsSnapshotId!)}>
+            <FileText className="size-3.5 mr-2" />
+            View Lyrics Snapshot
+          </DropdownMenuItem>
+        )}
         {!version.isCurrent && (
           <DropdownMenuItem onClick={() => onSetCurrent(version._id)}>
             <Star className="size-3.5 mr-2" />
@@ -751,5 +784,35 @@ function VersionMenu({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+// -- Lyrics Snapshot Viewer --
+
+function LyricsSnapshotViewer({
+  snapshotId,
+  onClose,
+}: {
+  snapshotId: Id<"lyricsSnapshots">;
+  onClose: () => void;
+}) {
+  const snapshot = useQuery(api.lyricsSnapshots.get, { id: snapshotId });
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Lyrics at time of recording</DialogTitle>
+          {snapshot?.label && (
+            <DialogDescription>{snapshot.label}</DialogDescription>
+          )}
+        </DialogHeader>
+        <div className="overflow-auto flex-1">
+          <pre className="whitespace-pre-wrap text-sm font-mono p-4 bg-muted rounded-md">
+            {snapshot?.content ?? "Loading..."}
+          </pre>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
