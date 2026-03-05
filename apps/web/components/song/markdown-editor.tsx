@@ -20,19 +20,7 @@ import {
 import { type Extension, StateField } from "@codemirror/state";
 import { syllableCounterPlugin } from "@/lib/codemirror/syllable-counter";
 import { createChordOverlayPlugin } from "@/lib/codemirror/chord-overlay";
-
-const SECTION_COLORS: Record<string, string> = {
-  verse: "var(--section-verse)",
-  chorus: "var(--section-chorus)",
-  bridge: "var(--section-bridge)",
-  "pre-chorus": "var(--section-pre-chorus)",
-  "pre chorus": "var(--section-pre-chorus)",
-  intro: "var(--section-intro)",
-  outro: "var(--section-outro)",
-  hook: "var(--section-hook)",
-  instrumental: "var(--section-instrumental)",
-  interlude: "var(--section-interlude)",
-};
+import { SECTION_COLORS } from "@/lib/lyrics/section-colors";
 
 function getSectionColor(name: string): string {
   const normalized = name.toLowerCase().replace(/\s*\d+\s*$/, "").trim();

@@ -7,7 +7,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AudioPlayer } from "@/components/audio/player";
 import { AudioUpload } from "@/components/audio/upload";
 import type { ActiveAudio } from "@/components/audio/persistent-player";
 
@@ -89,11 +88,6 @@ export function AudioNotesPanel({
                     )}
                   </div>
                 </div>
-                {note.audioUrl && (
-                  <div className="mb-2">
-                    <AudioPlayer src={note.audioUrl} />
-                  </div>
-                )}
                 {note.transcription && (
                   <div className="rounded-md bg-muted p-3">
                     <p className="text-xs font-medium text-muted-foreground mb-1">

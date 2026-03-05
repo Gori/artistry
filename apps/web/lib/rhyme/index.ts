@@ -26,6 +26,10 @@ export async function findRhymes(word: string): Promise<RhymeResult> {
     if (!res.ok) return EMPTY;
 
     const result: RhymeResult = await res.json();
+    if (clientCache.size >= 100) {
+      const firstKey = clientCache.keys().next().value;
+      if (firstKey !== undefined) clientCache.delete(firstKey);
+    }
     clientCache.set(w, result);
     return result;
   } catch {

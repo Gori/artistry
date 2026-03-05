@@ -25,9 +25,16 @@ export const listBySong = query({
       .withIndex("by_song", (q) => q.eq("songId", args.songId))
       .collect();
 
+    // Batch user lookups to avoid N+1
+    const uniqueCreatorIds = [...new Set(versions.map((v) => v.createdBy))];
+    const creators = await Promise.all(uniqueCreatorIds.map((id) => ctx.db.get(id)));
+    const creatorMap = new Map(
+      uniqueCreatorIds.map((id, i) => [id, creators[i]])
+    );
+
     const enriched = await Promise.all(
       versions.map(async (version) => {
-        const creator = await ctx.db.get(version.createdBy);
+        const creator = creatorMap.get(version.createdBy);
         return {
           ...version,
           audioUrl:

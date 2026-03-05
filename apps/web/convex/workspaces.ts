@@ -169,8 +169,10 @@ export const addMember = mutation({
       throw new Error("Not authorized to add members");
     }
 
-    const users = await ctx.db.query("users").collect();
-    const targetUser = users.find((u) => u.email === args.email);
+    const targetUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
     if (!targetUser) throw new Error("User not found");
 
     const existing = await ctx.db
@@ -210,17 +212,22 @@ export const getMembers = query({
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .collect();
 
-    return await Promise.all(
-      members.map(async (m) => {
-        const user = await ctx.db.get(m.userId);
-        return {
-          _id: m._id,
-          role: m.role,
-          user: user
-            ? { _id: user._id, name: user.name, email: user.email, image: user.image }
-            : null,
-        };
-      })
+    // Batch user lookups to avoid N+1
+    const uniqueUserIds = [...new Set(members.map((m) => m.userId))];
+    const users = await Promise.all(uniqueUserIds.map((id) => ctx.db.get(id)));
+    const userMap = new Map(
+      uniqueUserIds.map((id, i) => [id, users[i]])
     );
+
+    return members.map((m) => {
+      const user = userMap.get(m.userId);
+      return {
+        _id: m._id,
+        role: m.role,
+        user: user
+          ? { _id: user._id, name: user.name, email: user.email, image: user.image }
+          : null,
+      };
+    });
   },
 });

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@artistry/navigation";
 import { LogOut, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -36,7 +36,7 @@ export function WorkspaceSettings({
   const addMember = useMutation(api.workspaces.addMember);
   const updateWorkspace = useMutation(api.workspaces.update);
   const { signOut } = useAuthActions();
-  const router = useRouter();
+  const router = useAppRouter();
 
   const [name, setName] = useState(workspaceName);
   const [email, setEmail] = useState("");

@@ -14,6 +14,14 @@ import { ReferenceCard } from "./reference-card";
 import { imagePasteExtension } from "@/lib/codemirror/image-paste";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +49,12 @@ export function NotesPanel({
   const createReference = useMutation(api.references.create);
   const removeReference = useMutation(api.references.remove);
   const [refsExpanded, setRefsExpanded] = useState(true);
+  const [referenceDialog, setReferenceDialog] = useState<{
+    open: boolean;
+    type: string;
+    defaultValue: string;
+    onSubmit: (value: string) => void;
+  }>({ open: false, type: "", defaultValue: "", onSubmit: () => {} });
 
   // --- AI state ---
   const { runAction, dismiss, aiExtension, viewRef } = useEditorAIWidget();
@@ -128,32 +142,48 @@ export function NotesPanel({
   );
 
   // --- Reference handlers ---
-  const handleAddText = useCallback(async () => {
-    const text = prompt("Enter a text note:");
-    if (text) {
-      await createReference({ songId, type: "text", content: text });
-    }
+  const handleAddText = useCallback(() => {
+    setReferenceDialog({
+      open: true,
+      type: "Text Note",
+      defaultValue: "",
+      onSubmit: (value) => {
+        if (value) void createReference({ songId, type: "text", content: value });
+      },
+    });
   }, [songId, createReference]);
 
-  const handleAddLink = useCallback(async () => {
-    const url = prompt("Enter a URL:");
-    if (url) {
-      await createReference({ songId, type: "link", content: url, title: url });
-    }
+  const handleAddLink = useCallback(() => {
+    setReferenceDialog({
+      open: true,
+      type: "URL",
+      defaultValue: "",
+      onSubmit: (value) => {
+        if (value) void createReference({ songId, type: "link", content: value, title: value });
+      },
+    });
   }, [songId, createReference]);
 
-  const handleAddColor = useCallback(async () => {
-    const color = prompt("Enter a hex color (e.g. #ff6b6b):");
-    if (color) {
-      await createReference({ songId, type: "color", content: color });
-    }
+  const handleAddColor = useCallback(() => {
+    setReferenceDialog({
+      open: true,
+      type: "Hex Color (e.g. #ff6b6b)",
+      defaultValue: "",
+      onSubmit: (value) => {
+        if (value) void createReference({ songId, type: "color", content: value });
+      },
+    });
   }, [songId, createReference]);
 
-  const handleAddImage = useCallback(async () => {
-    const url = prompt("Enter an image URL:");
-    if (url) {
-      await createReference({ songId, type: "image", content: url });
-    }
+  const handleAddImage = useCallback(() => {
+    setReferenceDialog({
+      open: true,
+      type: "Image URL",
+      defaultValue: "",
+      onSubmit: (value) => {
+        if (value) void createReference({ songId, type: "image", content: value });
+      },
+    });
   }, [songId, createReference]);
 
   if (notes === undefined) {
@@ -259,6 +289,36 @@ export function NotesPanel({
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      <Dialog
+        open={referenceDialog.open}
+        onOpenChange={(open) =>
+          setReferenceDialog((prev) => ({ ...prev, open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter {referenceDialog.type}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = new FormData(e.currentTarget).get("value") as string;
+              referenceDialog.onSubmit(value);
+              setReferenceDialog((prev) => ({ ...prev, open: false }));
+            }}
+          >
+            <Input
+              name="value"
+              defaultValue={referenceDialog.defaultValue}
+              autoFocus
+            />
+            <DialogFooter className="mt-4">
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

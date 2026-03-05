@@ -1,0 +1,289 @@
+@import "tailwindcss";
+@import "@artistry/ui/styles/theme.css";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../apps/web/components/**/*.{ts,tsx}";
+@source "../../../../apps/web/hooks/**/*.{ts,tsx}";
+@source "../../../../apps/web/lib/**/*.{ts,tsx}";
+
+/* Dreaming Outloud — display headline font */
+@font-face {
+  font-family: "Dreaming Outloud";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/dreaming-outloud/DreamingOutloud-AllCapsSlanted.woff2") format("woff2");
+}
+
+/* Iosevka Aile — editor font */
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/iosevka-aile/IosevkaAile-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/iosevka-aile/IosevkaAile-Italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/iosevka-aile/IosevkaAile-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/iosevka-aile/IosevkaAile-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Aile";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/iosevka-aile/IosevkaAile-Bold.woff2") format("woff2");
+}
+
+/* PT Root UI — primary UI font */
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/pt-root-ui/pt-root-ui_light.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/pt-root-ui/pt-root-ui_regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/pt-root-ui/pt-root-ui_medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "PT Root UI";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../../../../apps/web/public/fonts/pt-root-ui/pt-root-ui_bold.woff2") format("woff2");
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    -webkit-app-region: drag;
+  }
+}
+
+button, input, textarea, a, select, [data-clickable] {
+  -webkit-app-region: no-drag;
+}
+
+/* CodeMirror editor overrides */
+.cm-editor {
+  font-family: "Iosevka Aile", sans-serif;
+  font-size: 18px;
+  background: transparent !important;
+  height: 100%;
+}
+
+.cm-editor .cm-scroller {
+  padding: 24px;
+  line-height: 1.55;
+  font-family: inherit;
+  overflow: auto;
+}
+
+.cm-editor .cm-content {
+  font-family: inherit;
+}
+
+.cm-editor .cm-gutters {
+  display: none !important;
+}
+
+.cm-editor .cm-activeLine,
+.cm-editor .cm-activeLineGutter {
+  background: transparent !important;
+}
+
+.cm-editor.cm-focused {
+  outline: none !important;
+}
+
+.cm-editor .cm-selectionBackground {
+  background: oklch(0.8 0.06 285 / 0.3) !important;
+}
+
+.cm-editor .cm-placeholder {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.cm-editor .cm-line {
+  padding: 0;
+}
+
+.cm-section-marker {
+  font-weight: 600;
+}
+
+/* AI result block */
+.cm-ai-block {
+  margin: 8px 24px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  font-family: "Iosevka Aile", sans-serif;
+  font-size: 15px;
+  overflow: hidden;
+}
+
+.cm-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.cm-ai-dismiss-x {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.cm-ai-dismiss-x:hover {
+  color: var(--foreground);
+}
+
+.cm-ai-context {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-style: italic;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-0);
+}
+
+.cm-ai-content {
+  padding: 12px 16px;
+  line-height: 1.7;
+  font-size: 15px;
+  color: var(--foreground);
+}
+
+.cm-ai-content p { margin: 0 0 0.5em; }
+.cm-ai-content p:last-child { margin-bottom: 0; }
+.cm-ai-content strong { font-weight: 700; }
+.cm-ai-content em { font-style: italic; }
+.cm-ai-content ul, .cm-ai-content ol { margin: 0.25em 0 0.5em; padding-left: 1.5em; }
+.cm-ai-content li { margin-bottom: 0.2em; }
+
+.cm-ai-content:has(.cm-ai-alternative) { padding: 0; }
+.cm-ai-alternative {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 12px; background: none; border: none;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  font-size: 14px; color: var(--foreground); font-family: inherit;
+  line-height: 1.5; transition: background-color 0.15s;
+}
+.cm-ai-alternative:last-child { border-bottom: none; }
+.cm-ai-alternative:hover { background: var(--accent); }
+
+.cm-ai-loading {
+  padding: 12px; color: var(--muted-foreground); font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cm-ai-spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: cm-ai-spin 0.6s linear infinite;
+}
+@keyframes cm-ai-spin { to { transform: rotate(360deg); } }
+
+.cm-ai-actions {
+  display: flex; gap: 8px; padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+.cm-ai-btn {
+  padding: 4px 12px; border-radius: var(--radius); font-size: 12px;
+  font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+  transition: background-color 0.15s, opacity 0.15s; font-family: inherit;
+}
+.cm-ai-btn-accept {
+  background: var(--primary); color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+.cm-ai-btn-accept:hover { opacity: 0.9; }
+.cm-ai-btn-dismiss { background: var(--secondary); color: var(--secondary-foreground); }
+.cm-ai-btn-dismiss:hover { background: var(--accent); }
+
+/* Image preview */
+.cm-image-widget { padding: 8px 24px; }
+.cm-image-widget img {
+  max-width: 100%; max-height: 400px; border-radius: var(--radius);
+  border: 1px solid var(--border); object-fit: contain;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.cm-image-widget.cm-image-loaded img { opacity: 1; }
+.cm-image-widget.cm-image-error img { display: none; }
+.cm-image-widget.cm-image-error::after {
+  content: "Failed to load image"; color: var(--muted-foreground);
+  font-size: 12px; font-style: italic;
+}
+.cm-image-uploading {
+  padding: 8px 24px; color: var(--muted-foreground);
+  font-size: 13px; font-style: italic;
+}
+
+/* Focus Mode */
+.focus-mode .cm-editor { font-size: 20px; }
+.focus-mode .cm-editor .cm-scroller { padding: 48px 20%; line-height: 1.7; }
+
+/* Syllable Counter */
+.cm-syllable-count {
+  display: inline-block; margin-left: 12px; padding: 0 4px;
+  font-size: 10px; font-weight: 500; color: var(--muted-foreground);
+  opacity: 0.5; font-family: "PT Root UI", sans-serif;
+  vertical-align: middle; user-select: none;
+}
+
+/* Chord Overlay */
+.cm-chord-badge {
+  display: inline-block; padding: 1px 5px; margin: 0 1px;
+  border-radius: 4px; font-size: 11px; font-weight: 600;
+  font-family: "PT Root UI", sans-serif; vertical-align: baseline;
+  user-select: none; line-height: 1.4;
+}
+.cm-chord-diatonic {
+  background: oklch(from var(--primary) l c h / 0.15); color: var(--primary);
+}
+.cm-chord-nondiatonic {
+  background: oklch(from var(--warning) l c h / 0.15); color: var(--warning);
+}

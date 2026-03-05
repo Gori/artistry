@@ -46,6 +46,10 @@ export async function generatePeaks(
   const normalized = peaks.map((p) => p / maxPeak);
 
   const result: PeakData = { peaks: normalized, duration: decoded.duration };
+  if (cache.size >= 100) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
   cache.set(key, result);
   return result;
 }

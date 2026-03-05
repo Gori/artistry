@@ -373,6 +373,112 @@ export const remove = mutation({
 
     if (!membership) throw new Error("Not a member of this workspace");
 
+    // Cascade delete song-related data
+    const lyrics = await ctx.db
+      .query("lyrics")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const l of lyrics) {
+      await ctx.db.delete(l._id);
+    }
+
+    const notes = await ctx.db
+      .query("notes")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const n of notes) {
+      await ctx.db.delete(n._id);
+    }
+
+    const songVersions = await ctx.db
+      .query("songVersions")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const sv of songVersions) {
+      await ctx.db.delete(sv._id);
+    }
+
+    const audioNotes = await ctx.db
+      .query("audioNotes")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const an of audioNotes) {
+      await ctx.db.delete(an._id);
+    }
+
+    const shareLinks = await ctx.db
+      .query("shareLinks")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const sl of shareLinks) {
+      await ctx.db.delete(sl._id);
+    }
+
+    const lyricsSnapshots = await ctx.db
+      .query("lyricsSnapshots")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const ls of lyricsSnapshots) {
+      await ctx.db.delete(ls._id);
+    }
+
+    const references = await ctx.db
+      .query("references")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const ref of references) {
+      await ctx.db.delete(ref._id);
+    }
+
+    const versionMarkers = await ctx.db
+      .query("versionMarkers")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const vm of versionMarkers) {
+      await ctx.db.delete(vm._id);
+    }
+
+    // Cascade delete logic versioning data
+    const logicVersions = await ctx.db
+      .query("logicProjectVersions")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const v of logicVersions) {
+      await ctx.db.delete(v._id);
+    }
+
+    const logicDiffs = await ctx.db
+      .query("logicDiffs")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const d of logicDiffs) {
+      await ctx.db.delete(d._id);
+    }
+
+    const logicComments = await ctx.db
+      .query("logicComments")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const c of logicComments) {
+      await ctx.db.delete(c._id);
+    }
+
+    const logicReviews = await ctx.db
+      .query("logicReviews")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const r of logicReviews) {
+      await ctx.db.delete(r._id);
+    }
+
+    const logicProcessingJobs = await ctx.db
+      .query("logicProcessingJobs")
+      .withIndex("by_song", (q) => q.eq("songId", args.id))
+      .collect();
+    for (const j of logicProcessingJobs) {
+      await ctx.db.delete(j._id);
+    }
+
     await ctx.db.delete(args.id);
   },
 });

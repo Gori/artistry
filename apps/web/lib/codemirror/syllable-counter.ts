@@ -35,30 +35,42 @@ function buildDecorations(view: EditorView): DecorationSet {
   const widgets: Array<ReturnType<typeof Decoration.widget>> = [];
   const positions: number[] = [];
 
-  for (let i = 1; i <= view.state.doc.lines; i++) {
-    const line = view.state.doc.line(i);
-    const text = line.text.trim();
+  for (const { from, to } of view.visibleRanges) {
+    let pos = from;
+    while (pos <= to) {
+      const line = view.state.doc.lineAt(pos);
+      const text = line.text.trim();
 
-    // Skip empty lines and section markers
-    if (!text || SECTION_RE.test(text)) continue;
+      // Skip empty lines and section markers
+      if (!text || SECTION_RE.test(text)) {
+        pos = line.to + 1;
+        continue;
+      }
 
-    // Skip chord-only lines
-    if (/^\{[^}]+\}(\s*\{[^}]+\})*$/.test(text)) continue;
+      // Skip chord-only lines
+      if (/^\{[^}]+\}(\s*\{[^}]+\})*$/.test(text)) {
+        pos = line.to + 1;
+        continue;
+      }
 
-    const count = countLineSyllables(text);
-    if (count > 0) {
-      positions.push(line.to);
-      widgets.push(
-        Decoration.widget({
-          widget: new SyllableWidget(count),
-          side: 1,
-        })
-      );
+      const count = countLineSyllables(text);
+      if (count > 0) {
+        positions.push(line.to);
+        widgets.push(
+          Decoration.widget({
+            widget: new SyllableWidget(count),
+            side: 1,
+          })
+        );
+      }
+
+      pos = line.to + 1;
     }
   }
 
   return Decoration.set(
-    positions.map((pos, i) => widgets[i].range(pos))
+    positions.map((pos, i) => widgets[i].range(pos)),
+    true
   );
 }
 

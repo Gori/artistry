@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { PenLine, StickyNote, Disc3, Mic } from "lucide-react";
+import { PenLine, StickyNote, Disc3, Mic, Cpu } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
@@ -16,12 +16,14 @@ import { AudioNotesPanel } from "./audio-notes-panel";
 import { PersistentPlayer, type ActiveAudio } from "@/components/audio/persistent-player";
 import { InlineTagRow } from "./tag-manager";
 import { Teleprompter } from "./teleprompter";
+import { LogicPanel } from "./logic-panel";
 
 const SECTIONS = [
   { id: "lyrics", label: "Lyrics", icon: PenLine },
   { id: "notes", label: "Notes", icon: StickyNote },
   { id: "versions", label: "Versions", icon: Disc3 },
   { id: "audio-notes", label: "Audio Notes", icon: Mic },
+  { id: "logic", label: "Logic", icon: Cpu },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -44,9 +46,10 @@ export function SongDetailView({
   const appendToNotes = useMutation(api.notes.append);
   const appendToLyrics = useMutation(api.lyrics.append);
 
-  // Fetch counts for versions and audio notes
+  // Fetch counts for versions, audio notes, and logic versions
   const versions = useQuery(api.songVersions.listBySong, { songId: song._id });
   const audioNotes = useQuery(api.audioNotes.listBySong, { songId: song._id });
+  const logicVersions = useQuery(api.logicProjectVersions.listBySong, { songId: song._id });
 
   // Fetch lyrics for teleprompter
   const lyrics = useQuery(api.lyrics.getBySong, { songId: song._id });
@@ -54,6 +57,7 @@ export function SongDetailView({
   const sectionCounts: Partial<Record<SectionId, number>> = {
     versions: versions?.length,
     "audio-notes": audioNotes?.length,
+    logic: logicVersions?.length,
   };
 
   const handleMoveToNotes = useCallback(
@@ -111,6 +115,10 @@ export function SongDetailView({
         case "4":
           e.preventDefault();
           setActiveSection("audio-notes");
+          break;
+        case "5":
+          e.preventDefault();
+          setActiveSection("logic");
           break;
         case "v":
         case "V":
@@ -253,6 +261,11 @@ export function SongDetailView({
           {activeSection === "audio-notes" && (
             <div className="flex-1 overflow-auto p-6">
               <AudioNotesPanel songId={song._id} onPlay={handlePlay} />
+            </div>
+          )}
+          {activeSection === "logic" && (
+            <div className="flex-1 overflow-auto p-6">
+              <LogicPanel songId={song._id} />
             </div>
           )}
         </main>

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
+import { usePlatform } from "@artistry/platform";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { compressForTranscription } from "@/lib/audio-compress";
@@ -55,6 +56,7 @@ export function AudioUpload({
   onComplete?: () => void;
   lyricsContent?: string;
 }) {
+  const { uploadAudio } = usePlatform();
   const createVersionWithSnapshot = useMutation(api.songVersions.createWithLyricsSnapshot);
   const createAudioNote = useMutation(api.audioNotes.create);
 
@@ -97,19 +99,8 @@ export function AudioUpload({
         duration = await getAudioDuration(selectedFile);
       }
 
-      // Upload file to Vercel Blob
-      const formData = new FormData();
-      formData.append("file", fileToUpload);
-      const result = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!result.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const { url } = await result.json();
+      // Upload audio file
+      const { url } = await uploadAudio(fileToUpload);
 
       // Create record
       if (type === "version") {

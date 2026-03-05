@@ -60,11 +60,30 @@ export const create = mutation({
 
     if (!membership) throw new Error("Not a member of this workspace");
 
-    return await ctx.db.insert("lyricsSnapshots", {
+    const snapshotId = await ctx.db.insert("lyricsSnapshots", {
       songId: args.songId,
       content: args.content,
       createdBy: userId,
       label: args.label,
     });
+
+    // Cap snapshots at 50 per song — delete oldest unlabeled ones
+    const allSnapshots = await ctx.db
+      .query("lyricsSnapshots")
+      .withIndex("by_song", (q) => q.eq("songId", args.songId))
+      .collect();
+
+    if (allSnapshots.length > 50) {
+      const unlabeled = allSnapshots
+        .filter((s) => !s.label)
+        .sort((a, b) => a._creationTime - b._creationTime);
+
+      const toDelete = unlabeled.slice(0, allSnapshots.length - 50);
+      for (const s of toDelete) {
+        await ctx.db.delete(s._id);
+      }
+    }
+
+    return snapshotId;
   },
 });

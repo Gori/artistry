@@ -36,10 +36,13 @@ const schema = defineSchema({
     tagIds: v.optional(v.array(v.id("tags"))),
     groupId: v.optional(v.id("songGroups")),
     groupPosition: v.optional(v.number()),
+    latestLogicVersionId: v.optional(v.id("logicProjectVersions")),
+    latestLogicVersionNumber: v.optional(v.number()),
   })
     .index("by_workspace", ["workspaceId"])
     .index("by_workspace_and_stage", ["workspaceId", "stage"])
-    .index("by_workspace_and_slug", ["workspaceId", "slug"]),
+    .index("by_workspace_and_slug", ["workspaceId", "slug"])
+    .index("by_group", ["groupId"]),
   songGroups: defineTable({
     name: v.string(),
     workspaceId: v.id("workspaces"),
@@ -132,6 +135,123 @@ const schema = defineSchema({
     createdBy: v.id("users"),
   })
     .index("by_version", ["versionId"])
+    .index("by_song", ["songId"]),
+
+  // Logic Pro versioning tables
+  logicProjectVersions: defineTable({
+    songId: v.id("songs"),
+    versionNumber: v.number(),
+    message: v.optional(v.string()),
+    createdBy: v.id("users"),
+    status: v.union(
+      v.literal("uploading"),
+      v.literal("processing"),
+      v.literal("ready"),
+      v.literal("error")
+    ),
+    manifest: v.array(
+      v.object({
+        path: v.string(),
+        sha256: v.string(),
+        size: v.number(),
+        mtime: v.number(),
+      })
+    ),
+    totalSize: v.number(),
+    fileCount: v.number(),
+    errorMessage: v.optional(v.string()),
+  })
+    .index("by_song", ["songId"])
+    .index("by_song_and_version", ["songId", "versionNumber"]),
+
+  logicBlobs: defineTable({
+    sha256: v.string(),
+    url: v.string(),
+    size: v.number(),
+    registeredBy: v.id("users"),
+  }).index("by_sha256", ["sha256"]),
+
+  logicDiffs: defineTable({
+    songId: v.id("songs"),
+    fromVersionId: v.id("logicProjectVersions"),
+    toVersionId: v.id("logicProjectVersions"),
+    fromVersionNumber: v.number(),
+    toVersionNumber: v.number(),
+    entries: v.array(
+      v.object({
+        path: v.string(),
+        type: v.union(
+          v.literal("added"),
+          v.literal("removed"),
+          v.literal("modified"),
+          v.literal("renamed")
+        ),
+        oldPath: v.optional(v.string()),
+        oldSha256: v.optional(v.string()),
+        newSha256: v.optional(v.string()),
+        oldSize: v.optional(v.number()),
+        newSize: v.optional(v.number()),
+      })
+    ),
+    summary: v.object({
+      added: v.number(),
+      removed: v.number(),
+      modified: v.number(),
+      renamed: v.number(),
+    }),
+  })
+    .index("by_song", ["songId"])
+    .index("by_versions", ["fromVersionId", "toVersionId"]),
+
+  logicComments: defineTable({
+    songId: v.id("songs"),
+    versionId: v.id("logicProjectVersions"),
+    content: v.string(),
+    createdBy: v.id("users"),
+    parentId: v.optional(v.id("logicComments")),
+    // Optional timecode anchor (in seconds)
+    timestamp: v.optional(v.number()),
+    // Optional file path anchor
+    filePath: v.optional(v.string()),
+    resolved: v.optional(v.boolean()),
+  })
+    .index("by_song", ["songId"])
+    .index("by_version", ["versionId"]),
+
+  logicReviews: defineTable({
+    songId: v.id("songs"),
+    versionId: v.id("logicProjectVersions"),
+    reviewerId: v.id("users"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("changes_requested")
+    ),
+    comment: v.optional(v.string()),
+  })
+    .index("by_version", ["versionId"])
+    .index("by_song", ["songId"])
+    .index("by_reviewer", ["reviewerId"]),
+
+  logicProcessingJobs: defineTable({
+    versionId: v.id("logicProjectVersions"),
+    songId: v.id("songs"),
+    type: v.union(
+      v.literal("diff"),
+      v.literal("audio_proxy"),
+      v.literal("waveform")
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    errorMessage: v.optional(v.string()),
+    result: v.optional(v.any()),
+  })
+    .index("by_version", ["versionId"])
+    .index("by_status", ["status"])
     .index("by_song", ["songId"]),
 });
 

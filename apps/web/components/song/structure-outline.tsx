@@ -15,23 +15,7 @@ import {
   type LyricsSection,
 } from "@/lib/lyrics/parse-sections";
 import { cn } from "@/lib/utils";
-
-const SECTION_COLORS: Record<string, string> = {
-  verse: "bg-section-verse/20 text-section-verse border-section-verse/30",
-  chorus: "bg-section-chorus/20 text-section-chorus border-section-chorus/30",
-  bridge: "bg-section-bridge/20 text-section-bridge border-section-bridge/30",
-  "pre-chorus":
-    "bg-section-pre-chorus/20 text-section-pre-chorus border-section-pre-chorus/30",
-  "pre chorus":
-    "bg-section-pre-chorus/20 text-section-pre-chorus border-section-pre-chorus/30",
-  intro: "bg-section-intro/20 text-section-intro border-section-intro/30",
-  outro: "bg-section-outro/20 text-section-outro border-section-outro/30",
-  hook: "bg-section-hook/20 text-section-hook border-section-hook/30",
-  instrumental:
-    "bg-section-instrumental/20 text-section-instrumental border-section-instrumental/30",
-  interlude:
-    "bg-section-interlude/20 text-section-interlude border-section-interlude/30",
-};
+import { SECTION_OUTLINE_COLORS } from "@/lib/lyrics/section-colors";
 
 function getSectionClasses(name: string): string {
   const normalized = name
@@ -39,7 +23,7 @@ function getSectionClasses(name: string): string {
     .replace(/\s*\d+\s*$/, "")
     .trim();
   return (
-    SECTION_COLORS[normalized] ??
+    SECTION_OUTLINE_COLORS[normalized] ??
     "bg-muted text-muted-foreground border-border"
   );
 }

@@ -1,0 +1,19 @@
+appId: com.artistry.desktop
+productName: Artistry
+copyright: Copyright © 2024 Artistry
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**/*
+mac:
+  category: public.app-category.music
+  target:
+    - target: dmg
+      arch:
+        - universal
+  hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+dmg:
+  artifactName: Artistry-${version}.${ext}
