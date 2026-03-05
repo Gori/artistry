@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@artistry/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { Layers, Info, Share2, Maximize2, Monitor } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
@@ -134,12 +134,20 @@ export function SongHeader({
           </div>
         </div>
 
-        {/* Row 2: phase · workspace · last edit */}
+        {/* Row 2: workspace · phase · last edit */}
         <div className="flex items-center gap-2 text-xs">
+          <Link
+            href={`/workspace/${workspaceSlug}`}
+            className="text-muted-foreground/60 hover:text-muted-foreground hover:underline transition-colors"
+          >
+            {workspaceName ?? workspaceSlug}
+          </Link>
+
+          <span className="text-muted-foreground/40">&middot;</span>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-muted transition-colors cursor-pointer">
-                <span className={cn("size-2 rounded-full shrink-0", STAGE_DOT_CLASSES[song.stage])} />
+              <button className="inline-flex items-center rounded-md px-1 py-0.5 hover:bg-muted transition-colors cursor-pointer">
                 <span className={cn("font-medium", STAGE_TEXT_CLASSES[song.stage])}>
                   {STAGE_LABELS[song.stage as Stage] ?? song.stage}
                 </span>
@@ -158,15 +166,6 @@ export function SongHeader({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <span className="text-muted-foreground/40">&middot;</span>
-
-          <Link
-            href={`/workspace/${workspaceSlug}`}
-            className="text-muted-foreground/60 hover:text-muted-foreground hover:underline transition-colors"
-          >
-            {workspaceName ?? workspaceSlug}
-          </Link>
 
           {editedAgo && (
             <>

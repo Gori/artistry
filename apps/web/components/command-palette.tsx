@@ -9,7 +9,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useAppRouter, useAppPathname } from "@artistry/navigation";
 import { useQuery } from "convex/react";
 import { Command } from "cmdk";
 import {
@@ -85,7 +85,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 /* ------------------------------------------------------------------ */
 
 function useWorkspaceContext() {
-  const pathname = usePathname();
+  const pathname = useAppPathname();
 
   return useMemo(() => {
     // /workspace/[slug] or /workspace/[slug]/[song]
@@ -114,7 +114,7 @@ function CommandPaletteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const router = useRouter();
+  const router = useAppRouter();
   const [search, setSearch] = useState("");
   const { workspaceSlug, songSlug } = useWorkspaceContext();
 

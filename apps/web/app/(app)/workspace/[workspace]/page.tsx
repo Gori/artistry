@@ -45,7 +45,7 @@ export default function WorkspacePage({
     <KanbanBoard
       workspaceId={workspace._id}
       workspaceName={workspace.name}
-      workspaceSlug={workspace.slug!}
+      workspaceSlug={workspace.slug ?? workspaceSlug}
     />
   );
 }

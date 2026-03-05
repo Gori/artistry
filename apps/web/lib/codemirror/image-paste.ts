@@ -13,7 +13,11 @@ function isImageFile(file: File): boolean {
   return IMAGE_MIME_TYPES.includes(file.type);
 }
 
-const PLACEHOLDER = "![Uploading...]()";
+let pasteCounter = 0;
+
+function makePlaceholder(id: number): string {
+  return `![Uploading...{${id}}]()`;
+}
 
 /**
  * CodeMirror extension that intercepts paste and drop events containing
@@ -63,6 +67,7 @@ function handleImageInsert(
   onUpload: (file: File) => Promise<string>
 ) {
   const pos = view.state.selection.main.head;
+  const placeholder = makePlaceholder(pasteCounter++);
 
   // Defer the dispatch so it runs after CodeMirror finishes processing the
   // current DOM event. Dispatching synchronously inside CM's paste/drop
@@ -73,20 +78,20 @@ function handleImageInsert(
     const clampedPos = Math.min(pos, view.state.doc.length);
 
     view.dispatch({
-      changes: { from: clampedPos, insert: PLACEHOLDER },
+      changes: { from: clampedPos, insert: placeholder },
     });
 
     onUpload(file)
       .then((url) => {
         const doc = view.state.doc.toString();
-        const placeholderIdx = doc.indexOf(PLACEHOLDER);
+        const placeholderIdx = doc.indexOf(placeholder);
         if (placeholderIdx === -1) return;
 
         const name = file.name.replace(/\.[^.]+$/, "") || "image";
         view.dispatch({
           changes: {
             from: placeholderIdx,
-            to: placeholderIdx + PLACEHOLDER.length,
+            to: placeholderIdx + placeholder.length,
             insert: `![${name}](${url})`,
           },
         });
@@ -94,13 +99,13 @@ function handleImageInsert(
       .catch(() => {
         // Remove placeholder on failure
         const doc = view.state.doc.toString();
-        const placeholderIdx = doc.indexOf(PLACEHOLDER);
+        const placeholderIdx = doc.indexOf(placeholder);
         if (placeholderIdx === -1) return;
 
         view.dispatch({
           changes: {
             from: placeholderIdx,
-            to: placeholderIdx + PLACEHOLDER.length,
+            to: placeholderIdx + placeholder.length,
             insert: "",
           },
         });

@@ -4,11 +4,13 @@ import { useState, useRef, useCallback } from "react";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
+import { usePlatform } from "@artistry/platform";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 
 export function MicRecorder({ songId }: { songId: Id<"songs"> }) {
+  const { uploadAudio } = usePlatform();
   const createAudioNote = useMutation(api.audioNotes.create);
 
   const [recording, setRecording] = useState(false);
@@ -27,15 +29,7 @@ export function MicRecorder({ songId }: { songId: Id<"songs"> }) {
           type: "audio/webm",
         });
 
-        const formData = new FormData();
-        formData.append("file", file);
-        const result = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!result.ok) throw new Error("Upload failed");
-        const { url } = await result.json();
+        const { url } = await uploadAudio(file);
 
         await createAudioNote({
           songId,

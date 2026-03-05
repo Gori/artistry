@@ -4,23 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { X, Play, Pause, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const SECTION_COLORS: Record<string, string> = {
-  verse: "text-section-verse",
-  chorus: "text-section-chorus",
-  bridge: "text-section-bridge",
-  "pre-chorus": "text-section-pre-chorus",
-  "pre chorus": "text-section-pre-chorus",
-  intro: "text-section-intro",
-  outro: "text-section-outro",
-  hook: "text-section-hook",
-  instrumental: "text-section-instrumental",
-  interlude: "text-section-interlude",
-};
+import { SECTION_TEXT_COLORS } from "@/lib/lyrics/section-colors";
 
 function getSectionColor(name: string): string {
   const normalized = name.toLowerCase().replace(/\s*\d+\s*$/, "").trim();
-  return SECTION_COLORS[normalized] ?? "text-muted-foreground";
+  return SECTION_TEXT_COLORS[normalized] ?? "text-muted-foreground";
 }
 
 const SECTION_RE = /^\[([^\]]+)\]\s*$/;

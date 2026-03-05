@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import Link from "next/link";
+import { Link } from "@artistry/navigation";
 import { Import, Info, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -400,6 +400,8 @@ export function KanbanBoard({
       await createSong({ title: newSongTitle.trim(), workspaceId });
       setNewSongTitle("");
       setDialogOpen(false);
+    } catch {
+      toast.error("Failed to create song");
     } finally {
       setCreating(false);
     }

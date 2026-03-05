@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import Link from "next/link";
+import { Link } from "@artistry/navigation";
 import { Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {

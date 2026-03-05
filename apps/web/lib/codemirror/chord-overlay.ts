@@ -38,29 +38,35 @@ function buildDecorations(view: EditorView, songKey?: string): DecorationSet {
   const decorations: Array<ReturnType<typeof Decoration.replace>> = [];
   const positions: Array<{ from: number; to: number }> = [];
 
-  for (let i = 1; i <= view.state.doc.lines; i++) {
-    const line = view.state.doc.line(i);
-    let match;
-    CHORD_RE.lastIndex = 0;
+  for (const { from, to } of view.visibleRanges) {
+    let pos = from;
+    while (pos <= to) {
+      const line = view.state.doc.lineAt(pos);
+      let match;
+      CHORD_RE.lastIndex = 0;
 
-    while ((match = CHORD_RE.exec(line.text)) !== null) {
-      const chord = match[1];
-      const from = line.from + match.index;
-      const to = from + match[0].length;
+      while ((match = CHORD_RE.exec(line.text)) !== null) {
+        const chord = match[1];
+        const mFrom = line.from + match.index;
+        const mTo = mFrom + match[0].length;
 
-      const diatonic = songKey ? isDiatonic(chord, songKey) : true;
+        const diatonic = songKey ? isDiatonic(chord, songKey) : true;
 
-      positions.push({ from, to });
-      decorations.push(
-        Decoration.replace({
-          widget: new ChordWidget(chord, diatonic),
-        })
-      );
+        positions.push({ from: mFrom, to: mTo });
+        decorations.push(
+          Decoration.replace({
+            widget: new ChordWidget(chord, diatonic),
+          })
+        );
+      }
+
+      pos = line.to + 1;
     }
   }
 
   return Decoration.set(
-    positions.map((pos, i) => decorations[i].range(pos.from, pos.to))
+    positions.map((pos, i) => decorations[i].range(pos.from, pos.to)),
+    true
   );
 }
 

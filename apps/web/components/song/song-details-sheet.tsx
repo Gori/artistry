@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@artistry/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -45,7 +45,7 @@ export function SongDetailsSheet({
   const updateSong = useMutation(api.songs.update);
   const moveSong = useMutation(api.songs.move);
   const removeSong = useMutation(api.songs.remove);
-  const router = useRouter();
+  const router = useAppRouter();
 
   const [title, setTitle] = useState(song.title);
   const [description, setDescription] = useState(song.description ?? "");

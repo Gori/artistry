@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,8 @@ export default function WorkspacesPage() {
       setName("");
       setOpen(false);
       router.push(`/workspace/${result.slug}`);
+    } catch {
+      toast.error("Failed to create workspace");
     } finally {
       setCreating(false);
     }

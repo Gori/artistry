@@ -23,6 +23,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePlatform } from "@artistry/platform";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ export function ImportSheet({
   const [actingLabel, setActingLabel] = useState("");
   const [songPickerOpen, setSongPickerOpen] = useState(false);
 
+  const { uploadAudio, uploadImage } = usePlatform();
   const importNew = useMutation(api.songs.importNew);
   const appendNotes = useMutation(api.notes.append);
   const createAudioNote = useMutation(api.audioNotes.create);
@@ -156,15 +158,7 @@ export function ImportSheet({
   // -------------------------------------------------------------------------
 
   async function uploadFile(file: File): Promise<{ url: string }> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const result = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-    if (!result.ok) throw new Error("Upload failed");
-    const { url } = await result.json();
-    return { url };
+    return uploadImage(file);
   }
 
   async function processContentWithImages(
@@ -189,7 +183,7 @@ export function ImportSheet({
   ): Promise<void> {
     for (const audio of audioFiles) {
       const file = base64ToFile(audio.data, audio.name, audio.mimeType);
-      const { url } = await uploadFile(file);
+      const { url } = await uploadAudio(file);
       const title = audio.name.replace(/\.[^.]+$/, "");
       await createAudioNote({ songId, title, audioUrl: url });
     }
